@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OkamiBet — Simulador de Campo</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg-dark:  #0d1117;
+      --bg-panel: #161b22;
+      --bg-card:  #21262d;
+      --bg-input: #0d1117;
+      --orange:   #f39c12;
+      --orange2:  #e67e22;
+      --green:    #2ecc71;
+      --red:      #e74c3c;
+      --blue:     #3498db;
+      --purple:   #9b59b6;
+      --border:   #30363d;
+      --text:     #e6edf3;
+      --muted:    #8b949e;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI',Roboto,sans-serif; }
+    html,body { background:var(--bg-dark); color:var(--text); min-height:100vh; }
+
+    /* TOPBAR */
+    .topbar {
+      background:var(--bg-panel); border-bottom:1px solid var(--border);
+      padding:0 30px; height:58px; display:flex; align-items:center;
+      justify-content:space-between; position:sticky; top:0; z-index:100;
+    }
+    .topbar-left { display:flex; align-items:center; gap:14px; }
+    .topbar-left i { color:var(--orange); font-size:1.4rem; }
+    .topbar-left h1 { font-size:1.1rem; }
+    .topbar-left span { color:var(--orange); }
+    .back-btn {
+      background:var(--bg-card); border:1px solid var(--border); color:var(--muted);
+      padding:7px 14px; border-radius:6px; cursor:pointer; font-size:0.85rem;
+      display:flex; align-items:center; gap:7px; text-decoration:none; transition:0.2s;
+    }
+    .back-btn:hover { border-color:var(--orange); color:var(--orange); }
+
+    /* LAYOUT */
+    .page { display:grid; grid-template-columns:320px 1fr; min-height:calc(100vh - 58px); }
+
+    /* CONFIG PANEL */
+    .config-panel {
+      background:var(--bg-panel); border-right:1px solid var(--border);
+      padding:20px; display:flex; flex-direction:column; gap:14px;
+      overflow-y:auto; max-height:calc(100vh - 58px); position:sticky; top:58px;
+    }
+    .config-section { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:14px; }
+    .config-section h3 { font-size:0.78rem; text-transform:uppercase; letter-spacing:1px; color:var(--orange); margin-bottom:12px; }
+    label.lbl { display:block; font-size:0.78rem; color:var(--muted); margin-bottom:4px; }
+    input.inp, select.inp {
+      width:100%; padding:8px 10px; background:var(--bg-input);
+      border:1px solid var(--border); color:var(--text); border-radius:5px;
+      font-size:0.88rem; margin-bottom:10px;
+    }
+    input.inp:focus, select.inp:focus { outline:none; border-color:var(--orange); }
+    .inp-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .btn-run {
+      width:100%; padding:13px; background:var(--orange); color:#000;
+      font-weight:800; font-size:0.95rem; border:none; border-radius:6px;
+      cursor:pointer; transition:0.2s; display:flex; align-items:center;
+      justify-content:center; gap:8px;
+    }
+    .btn-run:hover { background:var(--orange2); }
+    .btn-run:disabled { background:#555; color:#888; cursor:not-allowed; }
+
+    /* SHIELD TOGGLES */
+    .shield-item {
+      display:flex; justify-content:space-between; align-items:center;
+      padding:8px 0; border-bottom:1px solid var(--border); font-size:0.85rem;
+    }
+    .shield-item:last-child { border-bottom:none; }
+    .shield-item .si-label span { color:var(--muted); font-size:0.75rem; display:block; }
+    .toggle { position:relative; display:inline-block; width:38px; height:20px; }
+    .toggle input { opacity:0; width:0; height:0; }
+    .slider {
+      position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0;
+      background:#333; border-radius:20px; transition:.3s;
+    }
+    .slider:before {
+      position:absolute; content:""; height:14px; width:14px; left:3px; bottom:3px;
+      background:white; border-radius:50%; transition:.3s;
+    }
+    input:checked + .slider { background:var(--green); }
+    input:checked + .slider:before { transform:translateX(18px); }
+
+    /* RESULTS */
+    .results-panel { padding:22px 25px; overflow-y:auto; }
+
+    /* KPI */
+    .kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:22px; }
+    .kpi-card { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; }
+    .kpi-card h4 { font-size:0.72rem; color:var(--muted); margin-bottom:6px; text-transform:uppercase; }
+    .kpi-card .val { font-size:1.6rem; font-weight:700; }
+    .kpi-card .sub { font-size:0.75rem; color:var(--muted); margin-top:3px; }
+
+    /* ESCUDO STATUS */
+    .escudo-status { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:22px; }
+    .escudo-card {
+      background:var(--bg-card); border:1px solid var(--border); border-radius:8px;
+      padding:12px 14px; display:flex; align-items:center; gap:12px;
+    }
+    .escudo-icon { width:38px; height:38px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.2rem; flex-shrink:0; }
+    .escudo-icon.ok   { background:rgba(46,204,113,0.1);  color:var(--green); }
+    .escudo-icon.warn { background:rgba(231,76,60,0.1);   color:var(--red); }
+    .escudo-icon.neu  { background:rgba(52,152,219,0.1);  color:var(--blue); }
+    .escudo-info h4 { font-size:0.78rem; color:var(--muted); margin-bottom:3px; }
+    .escudo-info .enum { font-size:1.2rem; font-weight:700; }
+
+    /* CHARTS */
+    .charts-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:22px; }
+    .chart-box { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:16px; }
+    .chart-box h3 { font-size:0.85rem; color:var(--text); margin-bottom:12px; }
+
+    /* TABS */
+    .tabs { display:flex; gap:4px; margin-bottom:16px; border-bottom:1px solid var(--border); }
+    .tab-btn {
+      padding:8px 16px; background:none; border:none;
+      border-bottom:2px solid transparent; color:var(--muted);
+      cursor:pointer; font-size:0.88rem; transition:0.2s;
+    }
+    .tab-btn.active { color:var(--orange); border-bottom-color:var(--orange); }
+    .tab-content { display:none; }
+    .tab-content.active { display:block; }
+
+    /* TABLE */
+    .sim-table-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; font-size:0.82rem; }
+    th {
+      background:#161b22; padding:10px 12px; text-align:left; color:var(--muted);
+      font-weight:600; border-bottom:2px solid var(--border); white-space:nowrap;
+    }
+    td { padding:9px 12px; border-bottom:1px solid var(--border); white-space:nowrap; }
+    tr:hover td { background:rgba(255,255,255,0.03); }
+    .badge-ok   { background:rgba(46,204,113,0.15); color:var(--green);  padding:2px 7px; border-radius:4px; font-size:0.75rem; font-weight:bold; }
+    .badge-no   { color:#444; font-size:0.75rem; }
+    .badge-warn { background:rgba(231,76,60,0.15);  color:var(--red);    padding:2px 7px; border-radius:4px; font-size:0.75rem; font-weight:bold; }
+    .badge-esc  { background:rgba(243,156,18,0.15); color:var(--orange); padding:2px 7px; border-radius:4px; font-size:0.75rem; font-weight:bold; }
+    .tag-p { color:var(--blue);  font-weight:bold; }
+    .tag-e { color:var(--muted); font-weight:bold; }
+    .tag-c { color:var(--red);   font-weight:bold; }
+
+    /* DETAIL */
+    .detail-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+    .detail-card { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:14px; font-size:0.83rem; }
+    .detail-card h4 { font-size:0.78rem; text-transform:uppercase; letter-spacing:0.5px; padding-bottom:8px; margin-bottom:10px; border-bottom:1px solid var(--border); }
+    .detail-card h4.p { color:var(--blue); }
+    .detail-card h4.e { color:var(--muted); }
+    .detail-card h4.c { color:var(--red); }
+    .drow { display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+    .drow:last-child { border-bottom:none; }
+    .drow .dk { color:var(--muted); }
+    .drow .dv { font-weight:600; }
+
+    /* REC */
+    .rec-box { background:var(--bg-card); border:1px solid var(--green); border-radius:8px; padding:16px; margin-bottom:16px; }
+    .rec-box h3 { color:var(--green); font-size:0.9rem; margin-bottom:10px; }
+    .rec-item { display:flex; align-items:flex-start; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); font-size:0.85rem; }
+    .rec-item:last-child { border-bottom:none; }
+    .rec-item i { color:var(--orange); margin-top:2px; flex-shrink:0; }
+
+    /* EMPTY */
+    .empty-state { text-align:center; padding:80px 20px; color:var(--muted); }
+    .empty-state i { font-size:4rem; margin-bottom:16px; display:block; color:#222; }
+    .empty-state h3 { font-size:1.2rem; margin-bottom:8px; color:#444; }
+    .empty-state p { font-size:0.9rem; }
+
+    /* PROGRESS */
+    .progress-bar {
+      height:3px; background:var(--orange); position:fixed;
+      top:58px; left:0; z-index:200; transition:width 0.3s; width:0%;
+    }
+  </style>
+</head>
+<body>
+
+<div class="progress-bar" id="progressBar"></div>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="topbar-left">
+    <i class="fa-solid fa-flask-vial"></i>
+    <h1>Okami<span>Bet</span> — Simulador de Campo</h1>
+  </div>
+  <a href="/admin/" class="back-btn">
+    <i class="fa-solid fa-arrow-left"></i> Voltar ao Admin
+  </a>
+</header>
+
+<div class="page">
+
+  <!-- CONFIG PANEL -->
+  <aside class="config-panel">
+
+    <div class="config-section">
+      <h3>⚽ Dados do Partido</h3>
+      <label class="lbl">Equipe Local</label>
+      <input class="inp" id="eq1" type="text" value="Palmeiras">
+      <label class="lbl">Equipe Visitante</label>
+      <input class="inp" id="eq2" type="text" value="Corinthians">
+    </div>
+
+    <div class="config-section">
+      <h3>💰 Configuração do Pozo</h3>
+      <label class="lbl">Pozo Total (R$)</label>
+      <input class="inp" id="cfg_pozo" type="number" value="1000">
+      <label class="lbl">Total de Apostadores</label>
+      <input class="inp" id="cfg_apost" type="number" value="15">
+      <div class="inp-row">
+        <div>
+          <label class="lbl">Mín por Apostador (R$)</label>
+          <input class="inp" id="cfg_min" type="number" value="20">
+        </div>
+        <div>
+          <label class="lbl">Máx por Apostador (R$)</label>
+          <input class="inp" id="cfg_max" type="number" value="200">
+        </div>
+      </div>
+      <label class="lbl">Nº de Distribuições</label>
+      <input class="inp" id="cfg_ndist" type="number" value="10" min="5" max="50">
+    </div>
+
+    <div class="config-section">
+      <h3>📊 Regras Financeiras</h3>
+      <label class="lbl">Comissão Bruta (%)</label>
+      <input class="inp" id="cfg_com" type="number" value="20" step="0.5">
+      <label class="lbl">Comissão de Emergência (%)</label>
+      <input class="inp" id="cfg_emg" type="number" value="5" step="0.5">
+      <label class="lbl">Cuota Mínima Garantida (x)</label>
+      <input class="inp" id="cfg_cuota" type="number" value="1.05" step="0.01">
+      <label class="lbl">Saldo Semilla (R$)</label>
+      <input class="inp" id="cfg_semilla" type="number" value="0">
+      <label class="lbl">Bloqueo de Mercado (%)</label>
+      <input class="inp" id="cfg_bloqueo" type="number" value="90">
+    </div>
+
+    <div class="config-section">
+      <h3>🛡️ Escudo Anti-Perdas</h3>
+      <div class="shield-item">
+        <div class="si-label">
+          <div>Sacrifício de Comissão</div>
+          <span>Reduz comissão se cuota &lt; mín</span>
+        </div>
+        <label class="toggle"><input type="checkbox" id="sw_sacrificio" checked><span class="slider"></span></label>
+      </div>
+      <div class="shield-item">
+        <div class="si-label">
+          <div>Cuota Mínima Garantida</div>
+          <span>Injeta semilla se necessário</span>
+        </div>
+        <label class="toggle"><input type="checkbox" id="sw_cuotamin" checked><span class="slider"></span></label>
+      </div>
+      <div class="shield-item">
+        <div class="si-label">
+          <div>Bloqueo de Mercado</div>
+          <span>Marca se concentração &gt; limite</span>
+        </div>
+        <label class="toggle"><input type="checkbox" id="sw_bloqueo" checked><span class="slider"></span></label>
+      </div>
+    </div>
+
+    <button class="btn-run" id="btnRun" onclick="ejecutarSimulaciones()">
+      <i class="fa-solid fa-play"></i> EXECUTAR SIMULAÇÕES
+    </button>
+
+  </aside>
+
+  <!-- RESULTS PANEL -->
+  <main class="results-panel">
+
+    <div class="empty-state" id="emptyState">
+      <i class="fa-solid fa-flask-vial"></i>
+      <h3>Nenhuma simulação executada</h3>
+      <p>Configure os parâmetros e clique em <strong style="color:var(--orange)">EXECUTAR SIMULAÇÕES</strong></p>
+    </div>
+
+    <div id="resultsContent" style="display:none;">
+
+      <div class="kpi-row" id="kpiRow"></div>
+      <div class="escudo-status" id="escudoStatus"></div>
+
+      <div class="charts-row">
+        <div class="chart-box">
+          <h3>📈 Cuota Final por Simulação</h3>
+          <canvas id="chartCuotas" height="160"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>🥧 Distribuição Média do Pozo</h3>
+          <canvas id="chartPie" height="160"></canvas>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('tabTabla',this)">📋 Tabela Completa</button>
+        <button class="tab-btn" onclick="switchTab('tabDetalle',this)">🔍 Detalhes por Sim</button>
+        <button class="tab-btn" onclick="switchTab('tabRec',this)">💡 Recomendações</button>
+      </div>
+
+      <!-- TAB TABLA -->
+      <div class="tab-content active" id="tabTabla">
+        <div class="sim-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Resultado</th>
+                <th>Apostado</th>
+                <th>Apost.</th>
+                <th>Conc. %</th>
+                <th>Comissão</th>
+                <th>Cuota</th>
+                <th>Pago/R$100</th>
+                <th>Lucro Casa</th>
+                <th>Lucro %</th>
+                <th>Sacrifício</th>
+                <th>Cuota Mín</th>
+                <th>Bloqueado</th>
+              </tr>
+            </thead>
+            <tbody id="tblBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB DETALLE -->
+      <div class="tab-content" id="tabDetalle">
+        <div style="margin-bottom:14px;">
+          <label class="lbl" style="display:inline; margin-right:8px;">Selecionar Simulação:</label>
+          <select class="inp" id="selSim" onchange="renderDetalle()" style="width:auto; display:inline-block;"></select>
+        </div>
+        <div class="detail-grid" id="detailGrid"></div>
+      </div>
+
+      <!-- TAB RECOMENDACIONES -->
+      <div class="tab-content" id="tabRec">
+        <div id="recContent"></div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+let SIM_DATA = [];
+let chartCuotas = null;
+let chartPie    = null;
+
+// ===== RNG SEEDED =====
+function seededRand(seed) {
+  let s = seed;
+  return function() {
+    s = (s * 1664525 + 1013904223) & 0xffffffff;
+    return (s >>> 0) / 0xffffffff;
+  };
+}
+
+// ===== DISTRIBUIR POZO =====
+function distribuirPozo(n, total, minv, maxv, seed) {
+  const rng = seededRand(seed);
+  for (let attempt = 0; attempt < 300; attempt++) {
+    let vals = Array.from({length:n}, () => minv + rng() * (maxv - minv));
+    const factor = total / vals.reduce((a,b) => a+b, 0);
+    vals = vals.map(v => Math.round(v * factor * 100) / 100);
+    const diff = Math.round((total - vals.reduce((a,b)=>a+b,0)) * 100) / 100;
+    vals[vals.length-1] = Math.round((vals[vals.length-1] + diff) * 100) / 100;
+    if (vals.every(v => v >= minv && v <= maxv)) return vals;
+  }
+  // fallback
+  const base = Math.floor(total/n * 100) / 100;
+  const vals = Array(n).fill(base);
+  vals[0] = Math.round((total - base*(n-1)) * 100) / 100;
+  return vals;
+}
+
+// ===== ASIGNAR PRONÓSTICOS =====
+function asignarPronosticos(vals, eq1, eq2, seed) {
+  const rng = seededRand(seed + 9999);
+  const ops = [eq1, 'Empate', eq2];
+  let pros = vals.map(() => ops[Math.floor(rng() * 3)]);
+  // garantir ao menos 1 em cada
+  ops.forEach((op, i) => { if (!pros.includes(op)) pros[i] = op; });
+  return pros;
+}
+
+// ===== CALCULAR ESCENARIO =====
+function calcularEscenario(distrib, ganador, cfg) {
+  const totalG = distrib.filter(d => d.p === ganador).reduce((a,d) => a+d.v, 0);
+  const countG = distrib.filter(d => d.p === ganador).length;
+  if (totalG === 0) return null;
+
+  const conc     = (totalG / cfg.pozo) * 100;
+  const bloqueado = cfg.swBloqueo && conc > cfg.bloqueo;
+
+  let comision = cfg.pozo * cfg.com / 100;
+  let pozoNeto = cfg.pozo - comision;
+  let cuota    = pozoNeto / totalG;
+
+  let sacrificio  = false;
+  let cuotaMinAct = false;
+  let inyeccion   = 0;
+
+  if (cfg.swSacrificio && cuota < cfg.cuotaMin) {
+    sacrificio = true;
+    comision   = cfg.pozo * cfg.emg / 100;
+    pozoNeto   = cfg.pozo - comision;
+    cuota      = pozoNeto / totalG;
+  }
+
+  if (cfg.swCuotaMin && cuota < cfg.cuotaMin) {
+    cuotaMinAct = true;
+    const necesario = totalG * cfg.cuotaMin;
+    inyeccion = necesario - pozoNeto;
+    pozoNeto  = necesario;
+    cuota     = cfg.cuotaMin;
+  }
+
+  const totalPagado = totalG * cuota;
+  const lucroNeto   = cfg.pozo - totalPagado - inyeccion;
+  const lucroPct    = (lucroNeto / cfg.pozo) * 100;
+
+  return {
+    ganador, totalGanador: r2(totalG), countGanador: countG,
+    concentracion: r2(conc), comision: r2(comision),
+    pozoNeto: r2(pozoNeto), cuota: r4(cuota),
+    sacrificio, cuotaMinAct, bloqueado,
+    inyeccion: r2(inyeccion), totalPagado: r2(totalPagado),
+    pagoPor100: r2(100 * cuota), lucroNeto: r2(lucroNeto), lucroPct: r2(lucroPct)
+  };
+}
+
+function r2(v) { return Math.round(v * 100) / 100; }
+function r4(v) { return Math.round(v * 10000) / 10000; }
+
+// ===== MAIN: EJECUTAR =====
+function ejecutarSimulaciones() {
+  const cfg = {
+    eq1:      document.getElementById('eq1').value.trim() || 'Local',
+    eq2:      document.getElementById('eq2').value.trim() || 'Visitante',
+    pozo:     parseFloat(document.getElementById('cfg_pozo').value),
+    nApost:   parseInt(document.getElementById('cfg_apost').value),
+    minV:     parseFloat(document.getElementById('cfg_min').value),
+    maxV:     parseFloat(document.getElementById('cfg_max').value),
+    nDist:    parseInt(document.getElementById('cfg_ndist').value),
+    com:      parseFloat(document.getElementById('cfg_com').value),
+    emg:      parseFloat(document.getElementById('cfg_emg').value),
+    cuotaMin: parseFloat(document.getElementById('cfg_cuota').value),
+    semilla:  parseFloat(document.getElementById('cfg_semilla').value),
+    bloqueo:  parseFloat(document.getElementById('cfg_bloqueo').value),
+    swSacrificio: document.getElementById('sw_sacrificio').checked,
+    swCuotaMin:   document.getElementById('sw_cuotamin').checked,
+    swBloqueo:    document.getElementById('sw_bloqueo').checked,
+  };
+
+  const btn = document.getElementById('btnRun');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Calculando...';
+
+  const bar = document.getElementById('progressBar');
+  let pct = 0;
+  const timer = setInterval(() => { pct = Math.min(pct+7, 90); bar.style.width = pct+'%'; }, 50);
+
+  setTimeout(() => {
+    SIM_DATA = [];
+
+    for (let i = 1; i <= cfg.nDist; i++) {
+      const vals  = distribuirPozo(cfg.nApost, cfg.pozo, cfg.minV, cfg.maxV, i * 97);
+      const pros  = asignarPronosticos(vals, cfg.eq1, cfg.eq2, i * 97);
+      const dist  = vals.map((v, j) => ({v, p: pros[j]}));
+
+      const resumDistrib = {
+        [cfg.eq1]:  { total: r2(dist.filter(d=>d.p===cfg.eq1).reduce((a,d)=>a+d.v,0)),   count: dist.filter(d=>d.p===cfg.eq1).length },
+        'Empate':   { total: r2(dist.filter(d=>d.p==='Empate').reduce((a,d)=>a+d.v,0)),  count: dist.filter(d=>d.p==='Empate').length },
+        [cfg.eq2]:  { total: r2(dist.filter(d=>d.p===cfg.eq2).reduce((a,d)=>a+d.v,0)),   count: dist.filter(d=>d.p===cfg.eq2).length },
+      };
+
+      [cfg.eq1, 'Empate', cfg.eq2].forEach(ganador => {
+        const r = calcularEscenario(dist, ganador, cfg);
+        if (r) SIM_DATA.push({ simId: i, distrib: resumDistrib, cfg, ...r });
+      });
+    }
+
+    clearInterval(timer);
+    bar.style.width = '100%';
+    setTimeout(() => bar.style.width = '0%', 600);
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> RE-EXECUTAR';
+
+    renderResultados(cfg);
+  }, 150);
+}
+
+// ===== RENDER =====
+function renderResultados(cfg) {
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('resultsContent').style.display = 'block';
+
+  const total       = SIM_DATA.length;
+  const lucroMedio  = r2(SIM_DATA.reduce((a,r) => a+r.lucroNeto, 0) / total);
+  const lucroPctM   = r2(SIM_DATA.reduce((a,r) => a+r.lucroPct, 0) / total);
+  const cuotaMedia  = r4(SIM_DATA.reduce((a,r) => a+r.cuota, 0) / total);
+  const sacrificios = SIM_DATA.filter(r => r.sacrificio).length;
+  const cuotaMins   = SIM_DATA.filter(r => r.cuotaMinAct).length;
+  const bloqueos    = SIM_DATA.filter(r => r.bloqueado).length;
+
+  // KPIs
+  document.getElementById('kpiRow').innerHTML = `
+    <div class="kpi-card">
+      <h4>Total Simulações</h4>
+      <div class="val" style="color:var(--orange)">${total}</div>
+      <div class="sub">${cfg.nDist} distribuciones × 3 escenarios</div>
+    </div>
+    <div class="kpi-card">
+      <h4>Lucro Médio Casa</h4>
+      <div class="val" style="color:var(--green)">R$ ${lucroMedio.toFixed(2)}</div>
+      <div class="sub">${lucroPctM.toFixed(1)}% do pozo</div>
+    </div>
+    <div class="kpi-card">
+      <h4>Cuota Média Geral</h4>
+      <div class="val" style="color:var(--blue)">${cuotaMedia.toFixed(2)}x</div>
+      <div class="sub">Retorno médio ao apostador</div>
+    </div>
+    <div class="kpi-card">
+      <h4>Escudo Ativado</h4>
+      <div class="val" style="color:${sacrificios+cuotaMins+bloqueos>0?'var(--red)':'var(--green)'}">${sacrificios+cuotaMins+bloqueos}</div>
+      <div class="sub">Proteções acionadas</div>
+    </div>`;
+
+  // ESCUDO STATUS
+  document.getElementById('escudoStatus').innerHTML = `
+    <div class="escudo-card">
+      <div class="escudo-icon ${sacrificios>0?'warn':'ok'}"><i class="fa-solid fa-scissors"></i></div>
+      <div class="escudo-info">
+        <h4>Sacrifício de Comissão</h4>
+        <div class="enum" style="color:${sacrificios>0?'var(--red)':'var(--green)'}">${sacrificios} <span style="font-size:0.82rem;font-weight:400">ativações</span></div>
+      </div>
+    </div>
+    <div class="escudo-card">
+      <div class="escudo-icon ${cuotaMins>0?'warn':'ok'}"><i class="fa-solid fa-shield-halved"></i></div>
+      <div class="escudo-info">
+        <h4>Cuota Mínima Garantida</h4>
+        <div class="enum" style="color:${cuotaMins>0?'var(--red)':'var(--green)'}">${cuotaMins} <span style="font-size:0.82rem;font-weight:400">ativações</span></div>
+      </div>
+    </div>
+    <div class="escudo-card">
+      <div class="escudo-icon ${bloqueos>0?'warn':'neu'}"><i class="fa-solid fa-lock"></i></div>
+      <div class="escudo-info">
+        <h4>Bloqueo de Mercado</h4>
+        <div class="enum" style="color:${bloqueos>0?'var(--red)':'var(--blue)'}">${bloqueos} <span style="font-size:0.82rem;font-weight:400">ativações</span></div>
+      </div>
+    </div>`;
+
+  renderCharts(cfg);
+  renderTabla(cfg);
+
+  // SELECT DETALLE
+  const sel = document.getElementById('selSim');
+  sel.innerHTML = '';
+  for (let i=1; i<=cfg.nDist; i++) sel.innerHTML += `<option value="${i}">Simulação #${i}</option>`;
+  renderDetalle();
+
+  renderRecomendaciones(cfg, sacrificios, cuotaMins, bloqueos, lucroMedio, lucroPctM);
+}
+
+function renderCharts(cfg) {
+  const sims   = [...new Set(SIM_DATA.map(r=>r.simId))];
+  const labels = sims.map(s=>`#${s}`);
+  const dEq1   = sims.map(s=>SIM_DATA.find(r=>r.simId===s&&r.ganador===cfg.eq1)?.cuota||0);
+  const dEmp   = sims.map(s=>SIM_DATA.find(r=>r.simId===s&&r.ganador==='Empate')?.cuota||0);
+  const dEq2   = sims.map(s=>SIM_DATA.find(r=>r.simId===s&&r.ganador===cfg.eq2)?.cuota||0);
+
+  if (chartCuotas) chartCuotas.destroy();
+  chartCuotas = new Chart(document.getElementById('chartCuotas'), {
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        {label:cfg.eq1+' gana', data:dEq1, backgroundColor:'rgba(52,152,219,0.75)'},
+        {label:'Empate',        data:dEmp, backgroundColor:'rgba(139,148,158,0.75)'},
+        {label:cfg.eq2+' gana', data:dEq2, backgroundColor:'rgba(231,76,60,0.75)'},
+      ]
+    },
+    options:{
+      responsive:true,
+      plugins:{legend:{position:'top',labels:{color:'#8b949e',font:{size:11}}}},
+      scales:{
+        x:{grid:{color:'#21262d'},ticks:{color:'#8b949e'}},
+        y:{grid:{color:'#21262d'},ticks:{color:'#8b949e'},title:{display:true,text:'Cuota (x)',color:'#8b949e'}}
+      }
+    }
+  });
+
+  const eq1Avg = r2(SIM_DATA.filter(r=>r.ganador===cfg.eq1).reduce((a,r)=>a+r.distrib[cfg.eq1].total,0)/sims.length);
+  const empAvg = r2(SIM_DATA.filter(r=>r.ganador==='Empate').reduce((a,r)=>a+r.distrib['Empate'].total,0)/sims.length);
+  const eq2Avg = r2(SIM_DATA.filter(r=>r.ganador===cfg.eq2).reduce((a,r)=>a+r.distrib[cfg.eq2].total,0)/sims.length);
+
+  if (chartPie) chartPie.destroy();
+  chartPie = new Chart(document.getElementById('chartPie'), {
+    type:'doughnut',
+    data:{
+      labels:[cfg.eq1,'Empate',cfg.eq2],
+      datasets:[{
+        data:[eq1Avg, empAvg, eq2Avg],
+        backgroundColor:['rgba(52,152,219,0.8)','rgba(139,148,158,0.8)','rgba(231,76,60,0.8)'],
+        borderColor:'#21262d', borderWidth:3
+      }]
+    },
+    options:{
+      responsive:true,
+      plugins:{
+        legend:{position:'right',labels:{color:'#8b949e',font:{size:11}}},
+        tooltip:{callbacks:{label:ctx=>`R$ ${ctx.parsed.toFixed(2)}`}}
+      }
+    }
+  });
+}
+
+function renderTabla(cfg) {
+  const tbody = document.getElementById('tblBody');
+  tbody.innerHTML = '';
+  SIM_DATA.forEach(r => {
+    const gc = r.ganador===cfg.eq1 ? 'tag-p' : r.ganador==='Empate' ? 'tag-e' : 'tag-c';
+    const lc = r.lucroNeto >= 0 ? 'color:var(--green)' : 'color:var(--red)';
+    tbody.innerHTML += `
+      <tr>
+        <td style="color:var(--muted)">#${r.simId}</td>
+        <td class="${gc}">${r.ganador}</td>
+        <td>R$ ${r.totalGanador.toFixed(2)}</td>
+        <td>${r.countGanador}</td>
+        <td>${r.concentracion.toFixed(1)}%</td>
+        <td>R$ ${r.comision.toFixed(2)}</td>
+        <td style="font-weight:700">${r.cuota.toFixed(2)}x</td>
+        <td>R$ ${r.pagoPor100.toFixed(2)}</td>
+        <td style="${lc};font-weight:700">R$ ${r.lucroNeto.toFixed(2)}</td>
+        <td style="${lc}">${r.lucroPct.toFixed(1)}%</td>
+        <td>${r.sacrificio  ? '<span class="badge-esc">✓ SIM</span>'  : '<span class="badge-no">—</span>'}</td>
+        <td>${r.cuotaMinAct ? '<span class="badge-warn">✓ SIM</span>' : '<span class="badge-no">—</span>'}</td>
+        <td>${r.bloqueado   ? '<span class="badge-warn">🚫 SIM</span>': '<span class="badge-no">—</span>'}</td>
+      </tr>`;
+  });
+}
+
+function renderDetalle() {
+  const simId = parseInt(document.getElementById('selSim').value);
+  const rows  = SIM_DATA.filter(r => r.simId === simId);
+  if (!rows.length) return;
+  const cfg = rows[0].cfg;
+  const clases = {
+    [cfg.eq1]: {cls:'p'}, 'Empate': {cls:'e'}, [cfg.eq2]: {cls:'c'}
+  };
+
+  document.getElementById('detailGrid').innerHTML = rows.map(r => {
+    const cl = clases[r.ganador];
+    return `
+      <div class="detail-card">
+        <h4 class="${cl.cls}">🏆 ${r.ganador} gana</h4>
+        <div style="background:var(--bg-input);border-radius:6px;padding:10px;margin-bottom:10px;font-size:0.78rem;">
+          <div style="color:var(--muted);margin-bottom:6px;font-weight:600;">Distribuição do Pozo</div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+            <span style="color:var(--blue)">${cfg.eq1}</span>
+            <strong>R$ ${r.distrib[cfg.eq1].total.toFixed(2)} (${r.distrib[cfg.eq1].count} apost.)</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+            <span style="color:var(--muted)">Empate</span>
+            <strong>R$ ${r.distrib['Empate'].total.toFixed(2)} (${r.distrib['Empate'].count} apost.)</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;">
+            <span style="color:var(--red)">${cfg.eq2}</span>
+            <strong>R$ ${r.distrib[cfg.eq2].total.toFixed(2)} (${r.distrib[cfg.eq2].count} apost.)</strong>
+          </div>
+        </div>
+        <div class="drow"><span class="dk">Apostado no resultado</span><span class="dv">R$ ${r.totalGanador.toFixed(2)}</span></div>
+        <div class="drow"><span class="dk">Concentração</span><span class="dv">${r.concentracion.toFixed(1)}%</span></div>
+        <div class="drow"><span class="dk">Comissão casa</span><span class="dv" style="color:var(--orange)">R$ ${r.comision.toFixed(2)}</span></div>
+        <div class="drow"><span class="dk">Pozo neto prêmios</span><span class="dv">R$ ${r.pozoNeto.toFixed(2)}</span></div>
+        <div class="drow"><span class="dk">Cuota final</span><span class="dv" style="color:var(--blue);font-size:1.1rem">${r.cuota.toFixed(4)}x</span></div>
+        <div class="drow"><span class="dk">Pago por R$100</span><span class="dv">R$ ${r.pagoPor100.toFixed(2)}</span></div>
+        <div class="drow"><span class="dk">Total pagado</span><span class="dv">R$ ${r.totalPagado.toFixed(2)}</span></div>
+        <div class="drow"><span class="dk">Lucro neto casa</span>
+          <span class="dv" style="color:${r.lucroNeto>=0?'var(--green)':'var(--red)'}">
+            R$ ${r.lucroNeto.toFixed(2)} (${r.lucroPct.toFixed(1)}%)
+          </span>
+        </div>
+        ${r.inyeccion>0 ? `<div class="drow"><span class="dk">Injeção semilla</span><span class="dv" style="color:var(--red)">R$ ${r.inyeccion.toFixed(2)}</span></div>` : ''}
+        <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
+          ${r.sacrificio  ? '<span class="badge-esc">✂ Sacrifício</span>' : ''}
+          ${r.cuotaMinAct ? '<span class="badge-warn">⬇ Cuota Mín</span>' : ''}
+          ${r.bloqueado   ? '<span class="badge-warn">🚫 Bloqueado</span>' : ''}
+          ${!r.sacrificio && !r.cuotaMinAct && !r.bloqueado ? '<span class="badge-ok">✓ Normal</span>' : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderRecomendaciones(cfg, sacrificios, cuotaMins, bloqueos, lucroMedio, lucroPctM) {
+  const melhor  = SIM_DATA.reduce((a,b) => a.lucroNeto > b.lucroNeto ? a : b);
+  const pior    = SIM_DATA.reduce((a,b) => a.lucroNeto < b.lucroNeto ? a : b);
+  const avgEq1  = r2(SIM_DATA.filter(r=>r.ganador===cfg.eq1).reduce((a,r)=>a+r.lucroNeto,0)/cfg.nDist);
+  const avgEmp  = r2(SIM_DATA.filter(r=>r.ganador==='Empate').reduce((a,r)=>a+r.lucroNeto,0)/cfg.nDist);
+  const avgEq2  = r2(SIM_DATA.filter(r=>r.ganador===cfg.eq2).reduce((a,r)=>a+r.lucroNeto,0)/cfg.nDist);
+
+  document.getElementById('recContent').innerHTML = `
+    <div class="rec-box">
+      <h3>📊 Resumo Comparativo Final — ${SIM_DATA.length} Simulações</h3>
+      <div class="rec-item"><i class="fa-solid fa-trophy"></i>
+        <div><strong>Mais rentável:</strong> Sim #${melhor.simId} — ${melhor.ganador} gana → Lucro <strong style="color:var(--green)">R$ ${melhor.lucroNeto.toFixed(2)} (${melhor.lucroPct.toFixed(1)}%)</strong></div>
+      </div>
+      <div class="rec-item"><i class="fa-solid fa-triangle-exclamation"></i>
+        <div><strong>Mais perigoso:</strong> Sim #${pior.simId} — ${pior.ganador} gana → Lucro <strong style="color:var(--red)">R$ ${pior.lucroNeto.toFixed(2)} (${pior.lucroPct.toFixed(1)}%)</strong></div>
+      </div>
+      <div class="rec-item"><i class="fa-solid fa-chart-bar"></i>
+        <div><strong>Lucro médio geral:</strong> R$ ${lucroMedio.toFixed(2)} (${lucroPctM.toFixed(1)}%)</div>
+      </div>
+    </div>
+
+    <div class="rec-box" style="border-color:var(--blue)">
+      <h3 style="color:var(--blue)">📈 Lucro Médio por Escenário</h3>
+      <div class="rec-item"><i class="fa-solid fa-circle" style="color:var(--blue)"></i>
+        <div><strong>${cfg.eq1} gana:</strong> R$ ${avgEq1.toFixed(2)} em média por simulação</div>
+      </div>
+      <div class="rec-item"><i class="fa-solid fa-circle" style="color:var(--muted)"></i>
+        <div><strong>Empate:</strong> R$ ${avgEmp.toFixed(2)} em média por simulação</div>
+      </div>
+      <div class="rec-item"><i class="fa-solid fa-circle" style="color:var(--red)"></i>
+        <div><strong>${cfg.eq2} gana:</strong> R$ ${avgEq2.toFixed(2)} em média por simulação</div>
+      </div>
+    </div>
+
+    <div class="rec-box" style="border-color:var(--purple)">
+      <h3 style="color:var(--purple)">💡 Recomendações de Configuração Ótima</h3>
+      <div class="rec-item"><i class="fa-solid fa-percent"></i>
+        <div><strong>Comissão atual (${cfg.com}%):</strong> ${cfg.com>=15&&cfg.com<=25 ? '✅ Adequada — boa margem sem espantar apostadores' : '⚠️ Considere entre 15-25% para equilíbrio ideal'}</div>
+      </div>
+      <div class="rec-item"><i class="fa-solid fa-seedling"></i>
+        <div><strong>Saldo Semilla (R$ ${cfg.semilla}):</strong> ${cfg.semilla===0&&cfg.pozo<500 ? '⚠️ Recomendável injetar R$ '+(cfg.pozo*0.1).toFixed(0)+' com pozo baixo' : '✅ Adequado para o volume atual'}</div>
+      </div>
+      <div class="rec-item"><i class="fa-solid fa-shield"></i>
+        <div><strong>Escudo Anti-Perdas:</strong> ${sacrificios+cuotaMins>0 ? '⚠️ Ativado '+(sacrificios+cuotaMins)+' vez(es) — considere aumentar semilla ou reduzir cuota mínima' : '✅ Não foi necessário — sistema estável'}</div>
+      </div>
+      <div class="rec-item"><i class="fa-solid fa-lock"></i>
+        <div><strong>Bloqueo de Mercado:</strong> ${bloqueos>0 ? '⚠️ '+bloqueos+' caso(s) de concentração excessiva detectado(s)' : '✅ Nenhuma concentração perigosa detectada'}</div>
+      </div>
+      <div class="rec-item"><i class="fa-solid fa-lightbulb"></i>
+        <div><strong>Configuração sugerida:</strong> Comissão ${cfg.com}% · Cuota mín ${cfg.cuotaMin}x · Semilla R$ ${Math.max(cfg.semilla, r2(cfg.pozo*0.05)).toFixed(0)} · Bloqueo ${cfg.bloqueo}%</div>
+      </div>
+    </div>`;
+}
+
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+}
+</script>
+</body>
+</html>
