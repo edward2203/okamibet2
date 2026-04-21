@@ -2,6 +2,9 @@
 from flask import request, jsonify
 from . import api_bp
 from app.database import get_db, release_db
+from app.models.configuracion import get_config
+from app.models.apuesta import ApuestaModel
+from app.services.calculos import extraer_equipos_partido, calcular_recomendaciones_escudo
 import psycopg2.extras
 
 DICCIONARIO_IDIOMAS = {"es": {"ganador_txt": "ganó"}, "pt": {"ganador_txt": "ganhou"}}
@@ -78,6 +81,17 @@ def get_shield_rules():
         release_db(conn)
 
     return jsonify([dict(r) for r in rules])
+
+
+@api_bp.route('/shield/recommendation', methods=['GET'])
+def get_shield_recommendation():
+    """Devuelve recomendaciones de escudo anti-pérdidas según la matemática actual."""
+    total_bruto = ApuestaModel.obtener_suma_todas()
+    partido_actual = get_config('partido_actual') or ''
+    op1, op2 = extraer_equipos_partido(partido_actual)
+    distribucion = ApuestaModel.obtener_distribucion(op1, op2)
+    recomendacion = calcular_recomendaciones_escudo(total_bruto, distribucion)
+    return jsonify(recomendacion)
 
 
 @api_bp.route('/shield/rules/update', methods=['POST'])

@@ -9,7 +9,7 @@ ext_bp = Blueprint('ext', __name__)
 # ─── Configuración ───────────────────────────────────────────────────────────
 TOKEN_WHATSAPP     = get_config('whatsapp_token')   or "TU_TOKEN_AQUÍ"
 ID_TELEFONO        = get_config('whatsapp_phone_id') or "TU_ID_AQUÍ"
-TOKEN_VERIFICACION = "bolao_brf_2026"
+TOKEN_VERIFICACION = "okamibet_2026"
 
 TOKEN_TELEGRAM  = get_config('telegram_token')  or "TU_TOKEN_BOT"
 CHAT_ADMIN_ID   = get_config('telegram_chat_id') or "TU_CHAT_ID"

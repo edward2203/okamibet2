@@ -263,6 +263,10 @@
     .shield-rule { margin-bottom: 16px; padding: 10px; background: #1a1e23; border-radius: 6px; border: 1px solid #333; }
     .shield-rule label { display: flex; justify-content: space-between; align-items: center; color: var(--text-main); margin-bottom: 4px; }
     .shield-rule p { font-size: 0.78rem; color: #888; margin-bottom: 6px; }
+    .shield-advice { margin-bottom: 16px; padding: 14px; background: rgba(56, 189, 248, 0.08); border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2); }
+    .shield-advice h3 { margin: 0 0 8px; color: #60a5fa; font-size: 0.98rem; }
+    .shield-advice-item { margin: 8px 0; padding: 10px; background: #0f172a; border-radius: 6px; border: 1px solid #334155; }
+    .shield-advice-item strong { display: block; margin-bottom: 4px; }
 
     .sim-box { background: #000; padding: 14px; border-radius: 8px; border: 1px solid #333; }
     .sim-result { margin-top: 12px; font-size: 0.83rem; color: #bbb; border-top: 1px solid #333; padding-top: 10px; }
@@ -483,7 +487,7 @@
           <h2>⚽ Partida da Semana</h2>
           <form action="{{ url_for('admin.guardar_partido') }}" method="POST">
             <label>Partido actual: <strong style="color:white;">{{ configs.partido_actual }}</strong></label>
-            <input type="text" name="nuevo_partido" placeholder="Ex: Flamengo vs Vasco - Dom 19:00" required>
+            <input type="text" name="partido_actual" placeholder="Ex: Flamengo vs Vasco - Dom 19:00" required>
             <button type="button" class="btn-blue" style="margin-bottom:12px;" id="btn_cargar_partidos">🔍 BUSCAR PARTIDOS (API)</button>
             <ul id="lista_partidos_api" style="font-size:0.82rem; color:#aaa; margin-bottom:12px;"></ul>
             <input type="password" name="admin_pass" placeholder="Sua Senha Admin" required>
@@ -493,7 +497,24 @@
 
         <div class="seccion-box" id="sec-regras" style="margin-bottom:0;">
           <h2>⚙️ Regras do Jogo</h2>
-          <form action="{{ url_for('admin.configurar_reglas_pro') }}" method="POST">
+          
+          <!-- RESUMEN DE REGLAS ACTUALES -->
+          <div style="background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.24); border-radius:8px; padding:12px; margin-bottom:14px; font-size:0.82rem;">
+            <div style="color:var(--text-muted); font-weight:600; margin-bottom:8px;">📋 CONFIGURACIÓN ACTUAL:</div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:8px;">
+              <div><span style="color:#888;">Semilla:</span> <strong style="color:#10b981;">R$ {{ configs.saldo_semilla|default('0.00') }}</strong></div>
+              <div><span style="color:#888;">Acumulado:</span> <strong style="color:#fbbf24;">R$ {{ configs.pozo_acumulado|default('0.00') }}</strong></div>
+              <div><span style="color:#888;">Apuesta Min:</span> <strong>R$ {{ configs.min_apuesta|default('20.00') }}</strong></div>
+              <div><span style="color:#888;">Apuesta Max:</span> <strong>R$ {{ configs.max_apuesta|default('200.00') }}</strong></div>
+              <div><span style="color:#888;">Cuota Máx:</span> <strong>{{ configs.cuota_maxima|default('10.0') }}x</strong></div>
+              <div><span style="color:#888;">Comisión:</span> <strong>{{ configs.comision|default('10') }}%</strong></div>
+              <div><span style="color:#888;">Bono Registro:</span> <strong>R$ {{ configs.bono_registro|default('5.00') }}</strong></div>
+              <div><span style="color:#888;">Bono 1er Apostador:</span> <strong>{{ configs.bono_primer_apostador|default('1.3') }}x</strong></div>
+              <div><span style="color:#888;">Cierre Apuestas:</span> <strong>{{ configs.cierre_minutos_antes|default('5') }} min</strong></div>
+            </div>
+          </div>
+          
+          <form action="{{ url_for('admin.guardar_partido') }}" method="POST">
             <div style="display:flex; gap:10px;">
               <div style="flex:1;">
                 <label>🔵 SALDO SEMILLA (R$)</label>
@@ -518,8 +539,13 @@
             <input type="number" step="0.1" name="bono_primer_apostador" value="{{ configs.bono_primer_apostador }}">
             <label>Cierre de Apuestas (min antes)</label>
             <input type="number" name="cierre_minutos_antes" value="{{ configs.cierre_minutos_antes }}">
+            <label>🔑 API Key (football-data.org)</label>
+            <input type="password" name="api_key" value="{{ configs.api_key }}" placeholder="Tu clave API de football-data.org">
             <input type="password" name="admin_pass" placeholder="Sua Senha Admin" required>
-            <button type="submit" class="btn-orange">ATUALIZAR REGRAS</button>
+            <div style="display:flex; gap:8px; margin-top:12px;">
+              <button type="submit" class="btn-orange" style="flex:1;">ATUALIZAR REGRAS</button>
+              <button type="button" class="btn-red" style="flex:0.5;" onclick="confirmarResetReglas()">🔄 RESET</button>
+            </div>
           </form>
         </div>
       </div>
@@ -528,6 +554,7 @@
       <div class="split-layout">
         <div class="seccion-box" style="margin-bottom:0; border-left:4px solid var(--danger-red);">
           <h2 style="color:var(--danger-red);">🛡️ Escudo Anti-Perdas</h2>
+          <div id="shield_advice"></div>
           <div id="shield_container"></div>
         </div>
         <div class="seccion-box" style="margin-bottom:0; border-left:4px solid var(--purple);">
@@ -610,7 +637,7 @@
           <div style="display:flex; gap:15px; flex-wrap:wrap;">
             <div style="flex:2; min-width:140px;">
               <label>Nome de Usuário</label>
-              <input type="text" name="usuario" placeholder="Ex: edward_brf" required>
+              <input type="text" name="usuario" placeholder="Ex: joao_silva" required>
             </div>
             <div style="flex:1; min-width:100px;">
               <label>PIN</label>
@@ -721,11 +748,42 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 
+// ===== RESET REGLAS =====
+function confirmarResetReglas() {
+  if (!confirm('⚠️ ¿Estás SEGURO de que deseas RESETEAR todas las reglas a valores por defecto?\n\nEsto pondrá TODO en CERO (semilla, acumulado) y valores por defecto.')) {
+    return;
+  }
+  
+  const adminPass = prompt('Ingresa tu contraseña de administrador:');
+  if (!adminPass) return;
+  
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = '{{ url_for("admin.reset_reglas") }}';
+  
+  const input = document.createElement('input');
+  input.type = 'hidden';
+  input.name = 'admin_pass';
+  input.value = adminPass;
+  
+  form.appendChild(input);
+  document.body.appendChild(form);
+  form.submit();
+}
+
 // ===== SHIELD =====
 async function cargarEscudo() {
   try {
-    const res = await fetch('/api/shield/rules');
-    const rules = await res.json();
+    const [ruleRes, adviceRes] = await Promise.all([
+      fetch('/api/shield/rules'),
+      fetch('/api/shield/recommendation')
+    ]);
+
+    const rules = await ruleRes.json();
+    const advice = adviceRes.ok ? await adviceRes.json() : null;
+
+    renderShieldAdvice(advice);
+
     const container = document.getElementById('shield_container');
     container.innerHTML = '';
     rules.forEach(rule => {
@@ -736,15 +794,41 @@ async function cargarEscudo() {
             <input type="checkbox" id="check_${rule.estrategia_id}" ${rule.activa ? 'checked' : ''}
                    onchange="guardarRegla('${rule.estrategia_id}')">
           </label>
-          <p>${rule.descripcion}</p>
+          <p>${rule.descripcion || 'Regla del escudo anti-pérdidas'}</p>
           <input type="number" step="0.01" id="val_${rule.estrategia_id}" value="${rule.valor_numerico}"
                  style="width:100px; background:#000; color:#fff; border:1px solid #444; padding:4px;"
                  onchange="guardarRegla('${rule.estrategia_id}')">
         </div>`;
     });
   } catch(e) {
+    document.getElementById('shield_advice').innerHTML = '';
     document.getElementById('shield_container').innerHTML = '<p style="color:#888; font-size:0.82rem;">API no disponible.</p>';
   }
+}
+
+function renderShieldAdvice(advice) {
+  const adviceContainer = document.getElementById('shield_advice');
+  if (!advice || !advice.suggestions) {
+    adviceContainer.innerHTML = '';
+    return;
+  }
+
+  const summary = advice.summary || 'No hay recomendaciones disponibles.';
+  const items = advice.suggestions.map(item => `
+    <div class="shield-advice-item">
+      <strong>${item.label}${item.recommended ? ' ✅' : ''}</strong>
+      <div style="font-size:0.83rem; color:#cbd5e1;">${item.reason}</div>
+      <div style="font-size:0.78rem; color:#94a3b8; margin-top:4px;">Estado: ${item.active ? 'ACTIVA' : 'INACTIVA'}</div>
+    </div>
+  `).join('');
+
+  adviceContainer.innerHTML = `
+    <div class="shield-advice">
+      <h3>Recomendación del sistema</h3>
+      <div style="font-size:0.88rem; color:#e2e8f0; margin-bottom:10px;">${summary}</div>
+      ${items}
+    </div>
+  `;
 }
 
 async function guardarRegla(id) {
@@ -756,6 +840,42 @@ async function guardarRegla(id) {
     body: JSON.stringify({ estrategia_id: id, activa, valor })
   });
 }
+
+async function cargarPartidosApi() {
+  const lista = document.getElementById('lista_partidos_api');
+  lista.innerHTML = '<li>Cargando partidos...</li>';
+
+  try {
+    const resp = await fetch('{{ url_for('admin.partidos_api') }}');
+    const data = await resp.json();
+
+    if (!resp.ok || data.error) {
+      lista.innerHTML = `<li>${data.error || 'Error al cargar partidos.'}</li>`;
+      return;
+    }
+
+    if (!Array.isArray(data.partidos) || data.partidos.length === 0) {
+      lista.innerHTML = '<li>No hay partidos programados.</li>';
+      return;
+    }
+
+    lista.innerHTML = data.partidos.map(partido =>
+      `<li style="margin-bottom:8px; cursor:pointer;" onclick="seleccionarPartido('${partido.replace(/'/g, "\\'")}')">${partido}</li>`
+    ).join('');
+  } catch (error) {
+    lista.innerHTML = '<li>Error al cargar partidos.</li>';
+  }
+}
+
+function seleccionarPartido(partido) {
+  const input = document.querySelector('input[name="partido_actual"]');
+  if (input) input.value = partido;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('btn_cargar_partidos');
+  if (btn) btn.addEventListener('click', cargarPartidosApi);
+});
 
 // ===== SIMULACION RAPIDA =====
 function ejecutarSimulacion() {

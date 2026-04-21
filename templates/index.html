@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="{{ 'pt-BR' if lang_actual == 'pt' else 'es-ES' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OkamiBet</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0b0d12;
+            color: #e5e7eb;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: radial-gradient(circle at top, rgba(16, 185, 129, 0.12), transparent 28%),
+                        radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.14), transparent 22%),
+                        #050708;
+        }
+
+        .card {
+            width: min(420px, calc(100vw - 32px));
+            background: rgba(10, 14, 19, 0.95);
+            border: 1px solid rgba(45, 212, 191, 0.24);
+            border-radius: 32px;
+            box-shadow: 0 28px 80px rgba(15, 23, 42, 0.35);
+            overflow: hidden;
+        }
+
+        .card__body {
+            padding: 28px 24px 32px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 28px;
+        }
+
+        .header__title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            line-height: 1.4;
+            color: #34d399;
+        }
+
+        .header__subtitle {
+            margin-top: 6px;
+            color: #cbd5e1;
+            font-size: 0.95rem;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.32);
+            border-radius: 999px;
+            color: #a7f3d0;
+            font-size: 0.88rem;
+            font-weight: 600;
+        }
+
+        .lang-switch {
+            display: inline-flex;
+            gap: 8px;
+        }
+
+        .lang-button {
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            background: rgba(15, 23, 42, 0.88);
+            color: #cbd5e1;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            padding: 8px 12px;
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .lang-button.active {
+            background: #10b981;
+            border-color: #10b981;
+            color: #0f172a;
+        }
+
+        .box {
+            border: 1px solid rgba(16, 185, 129, 0.24);
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 24px;
+            padding: 22px;
+            margin-bottom: 18px;
+        }
+
+        .box__label {
+            color: #94a3b8;
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            margin-bottom: 10px;
+        }
+
+        .box__amount {
+            font-size: clamp(2.05rem, 4vw, 3.25rem);
+            font-weight: 800;
+            color: #10b981;
+            line-height: 1;
+        }
+
+        .box__info {
+            margin-top: 12px;
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        .field {
+            display: grid;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .field label {
+            font-size: 0.82rem;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+
+        .field input,
+        .field select {
+            width: 100%;
+            border-radius: 16px;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            background: rgba(15, 23, 42, 0.88);
+            color: #f8fafc;
+            font-size: 1rem;
+            padding: 14px 16px;
+            outline: none;
+        }
+
+        .field input::placeholder {
+            color: #64748b;
+        }
+
+        .field select {
+            appearance: none;
+            background-image: linear-gradient(45deg, transparent 50%, #10b981 50%),
+                              linear-gradient(135deg, #10b981 50%, transparent 50%);
+            background-position: calc(100% - 18px) calc(1em + 2px), calc(100% - 14px) calc(1em + 2px);
+            background-size: 8px 8px, 8px 8px;
+            background-repeat: no-repeat;
+        }
+
+        .mini-card {
+            border: 1px dashed rgba(16, 185, 129, 0.36);
+            border-radius: 20px;
+            padding: 18px;
+            margin-top: 16px;
+            background: rgba(15, 23, 42, 0.72);
+        }
+
+        .mini-card__row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 16px;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        .mini-card__label {
+            color: #94a3b8;
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+        }
+
+        .mini-card__value {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #f8fafc;
+        }
+
+        .mini-card__value--accent {
+            color: #34d399;
+        }
+
+        .text-small {
+            color: #94a3b8;
+            font-size: 0.85rem;
+            margin-top: 8px;
+        }
+
+        .button {
+            width: 100%;
+            border: none;
+            border-radius: 18px;
+            padding: 16px 18px;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #0f172a;
+            background: linear-gradient(135deg, #34d399, #10b981);
+            cursor: pointer;
+            margin-top: 18px;
+        }
+
+        .button-secondary {
+            width: 100%;
+            border: 1px solid rgba(148, 163, 184, 0.24);
+            background: transparent;
+            color: #cbd5e1;
+            margin-top: 12px;
+        }
+
+        .section-note {
+            margin-top: 14px;
+            color: #64748b;
+            font-size: 0.85rem;
+            text-align: center;
+        }
+
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            color: #34d399;
+            font-size: 0.86rem;
+            font-weight: 700;
+            flex-wrap: wrap;
+        }
+
+        .tag span {
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            border: 1px solid transparent;
+        }
+
+        .status-pill.success {
+            background: rgba(16, 185, 129, 0.14);
+            border-color: rgba(16, 185, 129, 0.32);
+            color: #a7f3d0;
+        }
+
+        .status-pill.error {
+            background: rgba(248, 113, 113, 0.14);
+            border-color: rgba(248, 113, 113, 0.32);
+            color: #fecaca;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 500px) {
+            .card {
+                border-radius: 24px;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="card__body">
+            <div class="header">
+                <div>
+                    <div class="header__title">{{ partido }}</div>
+                    <div id="headerSubtitle" class="header__subtitle">{{ idioma.header_subtitle }}</div>
+                </div>
+                <div class="lang-switch">
+                    <button id="langPt" type="button" class="lang-button {% if lang_actual == 'pt' %}active{% endif %}">PT</button>
+                    <button id="langEs" type="button" class="lang-button {% if lang_actual == 'es' %}active{% endif %}">ES</button>
+                </div>
+            </div>
+
+            <div class="box">
+                <div id="pozoLabel" class="box__label">{{ idioma.pozo_txt }}</div>
+                <div class="box__amount">R$ {{ "{:.2f}".format(pozo) }}</div>
+            </div>
+
+            <form action="{{ url_for('public.procesar_apuesta') }}" method="POST">
+                <div class="field">
+                    <label id="usuarioLabel" for="usuario">{{ idioma.usuario_label }}</label>
+                    <input id="usuario" name="usuario" type="text" placeholder="Digite seu usuário" autocomplete="username" required>
+                </div>
+
+                <div class="field">
+                    <label id="pinLabel" for="pin">{{ idioma.pin_label }}</label>
+                    <input id="pin" name="pin" type="password" placeholder="{{ idioma.pin_placeholder }}" autocomplete="current-password" required>
+                </div>
+
+                <div id="usuarioStatus" class="tag hidden">
+                    <span id="usuarioSaldo" class="status-pill success">Saldo: R$ 0.00</span>
+                    <span id="usuarioPin" class="status-pill">PIN correto</span>
+                </div>
+                <div id="usuarioBalanceAfter" class="tag hidden">
+                    <span class="status-pill">Saldo após aposta: R$ <strong id="saldoAposAposta">0.00</strong></span>
+                </div>
+                <div class="field">
+                    <label id="montoLabel" for="monto">{{ idioma.monto_label }}</label>
+                    <input id="monto" name="monto" type="number" min="{{ min_apuesta }}" max="{{ max_apuesta }}" step="1" value="{{ min_apuesta }}" required>
+                    <p id="montoMessage" class="text-small">{{ idioma.maximo_disponible }}: R$ {{ max_apuesta|int }}</p>
+                </div>
+
+                <div class="field">
+                    <label id="pronosticoLabel" for="pronostico">{{ idioma.pronostico_label }}</label>
+                    <select id="pronostico" name="pronostico" required>
+                        <option id="optionOp1" value="{{ op1 }}">{{ idioma.victoria }} {{ op1 }}</option>
+                        <option id="optionEmpate" value="Empate">{{ idioma.empate }}</option>
+                        <option id="optionOp2" value="{{ op2 }}">{{ idioma.victoria }} {{ op2 }}</option>
+                    </select>
+                </div>
+
+                <div class="box mini-card" style="margin-top: 22px;">
+                    <div class="mini-card__row">
+                        <div>
+                            <div id="premioEstimadoLabel" class="mini-card__label">{{ idioma.premio_estimado }}</div>
+                            <div class="mini-card__value">R$ <span id="premioEstimado">130.00</span></div>
+                        </div>
+                        <div id="cotacaoLabel" class="mini-card__value mini-card__value--accent">{{ idioma.cotacao }}<br><strong id="cotacao">1.30x</strong></div>
+                    </div>
+                    <div class="mini-card__row">
+                        <div>
+                            <div id="apuestaLabel" class="mini-card__label">{{ idioma.apuesta }}</div>
+                            <div class="mini-card__value">R$ <span id="montoVisual">{{ min_apuesta|int }}</span></div>
+                        </div>
+                        <div>
+                            <div id="lucroPuroLabel" class="mini-card__label">{{ idioma.lucro_puro }}</div>
+                            <div class="mini-card__value">R$ <span id="lucroPuro">30.00</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <button id="apostarBtn" class="button" type="submit">{{ idioma.apostar_btn }}</button>
+            </form>
+
+            <button id="solicitarBtn" class="button button-secondary" onclick="location.href='/admin/'">{{ idioma.solicitar_btn }}</button>
+
+            <p id="footerNote" class="section-note">{{ idioma.minimo_apuesta }} R$ {{ min_apuesta|int }} • {{ idioma.maximo_disponible }} R$ {{ max_apuesta|int }} • {{ idioma.cotacao }} padrão 1.30x</p>
+        </div>
+    </div>
+
+    <script>
+        const usuarioInput = document.getElementById('usuario');
+        const pinInput = document.getElementById('pin');
+        const usuarioStatus = document.getElementById('usuarioStatus');
+        const usuarioSaldo = document.getElementById('usuarioSaldo');
+        const usuarioPin = document.getElementById('usuarioPin');
+        const usuarioBalanceAfter = document.getElementById('usuarioBalanceAfter');
+        const saldoAposAposta = document.getElementById('saldoAposAposta');
+        const montoInput = document.getElementById('monto');
+        const montoMessage = document.getElementById('montoMessage');
+        const premioEstimado = document.getElementById('premioEstimado');
+        const montoVisual = document.getElementById('montoVisual');
+        const lucroPuro = document.getElementById('lucroPuro');
+        const cotacao = document.getElementById('cotacao');
+        const langPtBtn = document.getElementById('langPt');
+        const langEsBtn = document.getElementById('langEs');
+        const headerSubtitle = document.getElementById('headerSubtitle');
+        const pozoLabel = document.getElementById('pozoLabel');
+        const pozoInfo = document.getElementById('pozoInfo');
+        const usuarioLabel = document.getElementById('usuarioLabel');
+        const pinLabel = document.getElementById('pinLabel');
+        const montoLabel = document.getElementById('montoLabel');
+        const pronosticoLabel = document.getElementById('pronosticoLabel');
+        const optionOp1 = document.getElementById('optionOp1');
+        const optionEmpate = document.getElementById('optionEmpate');
+        const optionOp2 = document.getElementById('optionOp2');
+        const premioEstimadoLabel = document.getElementById('premioEstimadoLabel');
+        const cotacaoLabel = document.getElementById('cotacaoLabel');
+        const apuestaLabel = document.getElementById('apuestaLabel');
+        const lucroPuroLabel = document.getElementById('lucroPuroLabel');
+        const apostarBtn = document.getElementById('apostarBtn');
+        const solicitarBtn = document.getElementById('solicitarBtn');
+        const footerNote = document.getElementById('footerNote');
+        const usuarioPinStatus = document.getElementById('usuarioPin');
+        const usuarioSaldoStatus = document.getElementById('usuarioSaldo');
+        const usuarioStatusLabel = document.getElementById('usuarioStatus');
+        const langButtons = [langPtBtn, langEsBtn];
+        const FACTOR = 1.3;
+        const MAX_ALLOWED = {{ max_apuesta }};
+        let currentSaldo = 0;
+        let currentLang = '{{ lang_actual }}';
+
+        const TRANSLATIONS = {
+            pt: {
+                cierre_titulo: 'Cierre de Apuestas em',
+                apuestas_cerradas: 'Apuestas Cerradas ❌',
+                pozo_txt: 'Total Acumulado',
+                pozo_info: 'Total escamoteado para cálculo de pagamento',
+                usuario_label: 'Usuário',
+                pin_label: 'PIN',
+                pin_placeholder: '••••',
+                monto_label: 'Valor da Aposta',
+                pronostico_label: 'Escolha o Resultado',
+                victoria: 'Vitória',
+                empate: 'Empate',
+                premio_estimado: 'Prêmio Estimado',
+                cotacao: 'Cotação',
+                apuesta: 'Aposta',
+                lucro_puro: 'Lucro puro',
+                apostar_btn: 'APOSTAR AGORA',
+                solicitar_btn: 'SOLICITAR CADASTRO / SALDO',
+                minimo_apuesta: 'Aposta mínima',
+                maximo_disponible: 'Máximo disponível',
+                user_not_found: 'Usuário não encontrado',
+                enter_valid_user: 'Informe um usuário válido',
+                enter_pin: 'Digite o PIN',
+                pin_correct: 'PIN correto',
+                pin_incorrect: 'PIN incorreto'
+            },
+            es: {
+                cierre_titulo: 'Cierre de Apuestas en',
+                apuestas_cerradas: 'Apuestas Cerradas ❌',
+                pozo_txt: 'Pozo Total',
+                pozo_info: 'Total oculto para cálculo de pago',
+                usuario_label: 'Usuario',
+                pin_label: 'PIN',
+                pin_placeholder: '••••',
+                monto_label: 'Monto de Apuesta',
+                pronostico_label: 'Elige Resultado',
+                victoria: 'Victoria',
+                empate: 'Empate',
+                premio_estimado: 'Premio Estimado',
+                cotacao: 'Cuota',
+                apuesta: 'Apuesta',
+                lucro_puro: 'Lucro neto',
+                apostar_btn: 'APOSTAR AHORA',
+                solicitar_btn: 'SOLICITAR REGISTRO / SALDO',
+                minimo_apuesta: 'Apuesta mínima',
+                maximo_disponible: 'Máximo disponible',
+                user_not_found: 'Usuario no encontrado',
+                enter_valid_user: 'Ingrese un usuario válido',
+                enter_pin: 'Ingrese el PIN',
+                pin_correct: 'PIN correcto',
+                pin_incorrect: 'PIN incorrecto'
+            }
+        };
+
+        function setLanguage(lang) {
+            if (!TRANSLATIONS[lang]) return;
+            currentLang = lang;
+            const t = TRANSLATIONS[lang];
+            document.documentElement.lang = lang === 'pt' ? 'pt-BR' : 'es-ES';
+            langButtons.forEach(btn => btn.classList.remove('active'));
+            if (lang === 'pt') langPtBtn.classList.add('active'); else langEsBtn.classList.add('active');
+            // NO sobrescribir headerSubtitle - lo actualiza el contador
+            pozoLabel.textContent = t.pozo_txt;
+            usuarioLabel.textContent = t.usuario_label;
+            pinLabel.textContent = t.pin_label;
+            pinInput.placeholder = t.pin_placeholder;
+            montoLabel.textContent = t.monto_label;
+            pronosticoLabel.textContent = t.pronostico_label;
+            optionOp1.textContent = `${t.victoria} ${optionOp1.value}`;
+            optionEmpate.textContent = t.empate;
+            optionOp2.textContent = `${t.victoria} ${optionOp2.value}`;
+            premioEstimadoLabel.textContent = t.premio_estimado;
+            cotacaoLabel.innerHTML = `${t.cotacao}<br><strong id="cotacao">${cotacao.textContent}</strong>`;
+            apuestaLabel.textContent = t.apuesta;
+            lucroPuroLabel.textContent = t.lucro_puro;
+            apostarBtn.textContent = t.apostar_btn;
+            solicitarBtn.textContent = t.solicitar_btn;
+            footerNote.textContent = `${t.minimo_apuesta} R$ {{ min_apuesta|int }} • ${t.maximo_disponible} R$ {{ max_apuesta|int }} • ${t.cotacao} padrão 1.30x`;
+            updateMontoMessage();
+            updateStatusText();
+            actualizarContador(); // Actualizar contador cuando cambia idioma
+        }
+
+        function actualizarContador() {
+            const t = TRANSLATIONS[currentLang];
+            const partidoTexto = '{{ partido }}';
+            const cierreMinutos = parseInt('{{ cierre_minutos_antes }}') || 10;
+            
+            // Extraer hora del partido (ej: "17:30" de "Bahia vs Santos - 25/04 às 17:30")
+            const horaMatch = partidoTexto.match(/(\\d{1,2}):(\\d{2})/);
+            if (!horaMatch) {
+                headerSubtitle.textContent = t.apuestas_cerradas;
+                return;
+            }
+            
+            const horaPartido = parseInt(horaMatch[1]);
+            const minutosPartido = parseInt(horaMatch[2]);
+            
+            // Calcular hora de cierre (resta cierreMinutos)
+            let horaCierre = horaPartido;
+            let minutosCierre = minutosPartido - cierreMinutos;
+            if (minutosCierre < 0) {
+                horaCierre -= 1;
+                minutosCierre += 60;
+            }
+            if (horaCierre < 0) horaCierre = 23;
+            
+            // Obtener hora actual
+            const ahora = new Date();
+            const horaActual = ahora.getHours();
+            const minutosActual = ahora.getMinutes();
+            const segundosActual = ahora.getSeconds();
+            
+            // Calcular diferencia en segundos
+            let segundosRestantes = (horaCierre * 3600 + minutosCierre * 60) - (horaActual * 3600 + minutosActual * 60 + segundosActual);
+            
+            // Si es negativo, significa que ya pasó la hora de cierre HOY, o es para mañana
+            if (segundosRestantes < 0) {
+                // Considerar que es para mañana (suma 24 horas)
+                segundosRestantes += 24 * 3600;
+            }
+            
+            if (segundosRestantes <= 0) {
+                headerSubtitle.textContent = t.apuestas_cerradas;
+            } else {
+                const minutos = Math.floor(segundosRestantes / 60);
+                const segundos = segundosRestantes % 60;
+                headerSubtitle.textContent = `${t.cierre_titulo}: ${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}`;
+            }
+        }
+
+        function updateMontoMessage() {
+            const maxUsuario = currentSaldo > 0 ? Math.min(MAX_ALLOWED, currentSaldo) : MAX_ALLOWED;
+            const t = TRANSLATIONS[currentLang];
+            montoMessage.textContent = `${t.maximo_disponible}: R$ ${maxUsuario.toFixed(0)}`;
+        }
+
+        function updateStatusText() {
+            const t = TRANSLATIONS[currentLang];
+            if (usuarioStatus.classList.contains('hidden')) return;
+            if (!currentSaldo) return;
+            if (pinInput.value.trim().length === 0) {
+                usuarioPinStatus.textContent = t.enter_pin;
+            } else if (usuarioPinStatus.classList.contains('status-pill success')) {
+                usuarioPinStatus.textContent = t.pin_correct;
+            }
+        }
+
+        langPtBtn.addEventListener('click', () => setLanguage('pt'));
+        langEsBtn.addEventListener('click', () => setLanguage('es'));
+
+        function actualizarTotales() {
+            const valor = Number(montoInput.value) || {{ min_apuesta }};
+            const premio = (valor * FACTOR).toFixed(2);
+            const lucro = (valor * (FACTOR - 1)).toFixed(2);
+            const saldoDespues = currentSaldo > 0 ? (currentSaldo - valor).toFixed(2) : '0.00';
+
+            premioEstimado.textContent = premio;
+            montoVisual.textContent = valor.toFixed(0);
+            lucroPuro.textContent = lucro;
+            cotacao.textContent = FACTOR.toFixed(2) + 'x';
+
+            if (currentSaldo > 0) {
+                saldoAposAposta.textContent = saldoDespues;
+            }
+        }
+
+        function mostrarUsuarioStatus(existe, saldo, pinCorrecto) {
+            const t = TRANSLATIONS[currentLang];
+            if (!existe) {
+                usuarioStatus.classList.remove('hidden');
+                usuarioSaldo.textContent = t.user_not_found;
+                usuarioSaldo.className = 'status-pill error';
+                usuarioPin.textContent = t.enter_valid_user;
+                usuarioPin.className = 'status-pill';
+                usuarioBalanceAfter.classList.add('hidden');
+                currentSaldo = 0;
+                montoInput.max = MAX_ALLOWED;
+                montoMessage.textContent = `${t.maximo_disponible}: R$ ${MAX_ALLOWED}`;
+                actualizarTotales();
+                return;
+            }
+
+            currentSaldo = saldo;
+            usuarioStatus.classList.remove('hidden');
+            usuarioSaldo.textContent = `Saldo: R$ ${saldo.toFixed(2)}`;
+            usuarioSaldo.className = 'status-pill success';
+
+            if (pinInput.value.trim().length === 0) {
+                usuarioPin.textContent = t.enter_pin;
+                usuarioPin.className = 'status-pill';
+            } else if (pinCorrecto) {
+                usuarioPin.textContent = t.pin_correct;
+                usuarioPin.className = 'status-pill success';
+            } else {
+                usuarioPin.textContent = t.pin_incorrect;
+                usuarioPin.className = 'status-pill error';
+            }
+
+            const maxApuestaUsuario = Math.min(MAX_ALLOWED, currentSaldo);
+            montoInput.max = maxApuestaUsuario;
+            montoMessage.textContent = `${t.maximo_disponible}: R$ ${maxApuestaUsuario.toFixed(0)}`;
+            usuarioBalanceAfter.classList.remove('hidden');
+            actualizarTotales();
+        }
+
+        async function validarUsuario() {
+            const usuario = usuarioInput.value.trim().toLowerCase();
+            const pin = pinInput.value.trim();
+
+            if (!usuario) {
+                usuarioStatus.classList.add('hidden');
+                usuarioBalanceAfter.classList.add('hidden');
+                currentSaldo = 0;
+                montoInput.max = MAX_ALLOWED;
+                const t = TRANSLATIONS[currentLang];
+                montoMessage.textContent = `${t.maximo_disponible}: R$ ${MAX_ALLOWED}`;
+                actualizarTotales();
+                return;
+            }
+
+            try {
+                const response = await fetch('{{ url_for('api.validar_usuario') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ usuario, pin })
+                });
+
+                const data = await response.json();
+                mostrarUsuarioStatus(data.existe, data.saldo || 0, data.pin_correcto || false);
+            } catch (error) {
+                usuarioStatus.classList.add('hidden');
+                usuarioBalanceAfter.classList.add('hidden');
+                currentSaldo = 0;
+                montoInput.max = MAX_ALLOWED;
+                const t = TRANSLATIONS[currentLang];
+                montoMessage.textContent = `${t.maximo_disponible}: R$ ${MAX_ALLOWED}`;
+                actualizarTotales();
+            }
+        }
+
+        montoInput.addEventListener('input', () => {
+            if (Number(montoInput.value) < {{ min_apuesta }}) {
+                montoInput.value = {{ min_apuesta }};
+            }
+            if (currentSaldo > 0 && Number(montoInput.value) > Math.min(MAX_ALLOWED, currentSaldo)) {
+                montoInput.value = Math.min(MAX_ALLOWED, currentSaldo);
+            }
+            actualizarTotales();
+        });
+
+        usuarioInput.addEventListener('input', () => {
+            validarUsuario();
+        });
+
+        pinInput.addEventListener('input', () => {
+            validarUsuario();
+        });
+
+        // Inicializar cuando carga la página
+        actualizarTotales();
+        actualizarContador();
+        
+        // Actualizar contador cada segundo
+        setInterval(actualizarContador, 1000);
+    </script>
+</body>
+</html>

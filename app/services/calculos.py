@@ -1,4 +1,6 @@
 from app.services.db import obtener_conexion, transaction
+from app.database import get_db, release_db
+import psycopg2.extras
 from app.models.configuracion import get_config
 from app.models.apuesta import ApuestaModel
 from app.models.usuario import UsuarioModel
@@ -20,6 +22,120 @@ def extraer_equipos_partido(partido_str):
     op1 = partes[0].strip()
     op2 = partes[1].split("-")[0].strip() if len(partes) > 1 else "Visitante"
     return op1, op2
+
+
+def obtener_reglas_escudo():
+    conn = get_db()
+    try:
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cursor.execute(
+            'SELECT estrategia_id, nombre, activa, valor_numerico FROM admin_shield_rules'
+        )
+        reglas = {row['estrategia_id']: row for row in cursor.fetchall()}
+        cursor.close()
+        return reglas
+    finally:
+        release_db(conn)
+
+
+def calcular_recomendaciones_escudo(total_bruto, distribucion):
+    reglas = obtener_reglas_escudo()
+    total_apostado = sum(distribucion.values())
+
+    if total_apostado <= 0 or total_bruto <= 0:
+        return {
+            'summary': 'No hay apuestas activas para evaluar el escudo.',
+            'situacion': 'estabilidad',
+            'suggestions': [],
+            'meta': {
+                'total_bruto': float(total_bruto),
+                'total_apostado': float(total_apostado)
+            }
+        }
+
+    comision_pct = float(get_config('comision') or 20)
+    comision_base = total_bruto * (comision_pct / 100)
+    cuota_min = float(reglas.get('cuota_minima_garantizada', {}).get('valor_numerico', 1.0))
+    sacrificio_pct = float(reglas.get('sacrificio_comision', {}).get('valor_numerico', 0.0))
+
+    evaluaciones = []
+    for pronostico, monto in distribucion.items():
+        cuota = (total_bruto - comision_base) / monto if monto > 0 else float('inf')
+        share = monto / total_apostado if total_apostado > 0 else 0.0
+        evaluaciones.append({
+            'pronostico': pronostico,
+            'monto': float(monto),
+            'cuota': float(cuota),
+            'share': float(share)
+        })
+
+    peor = min(evaluaciones, key=lambda x: x['cuota'])
+    mayor_exposicion = max(evaluaciones, key=lambda x: x['share'])
+
+    cuotas_con_sacrificio = {
+        e['pronostico']: float((total_bruto - total_bruto * (sacrificio_pct / 100)) / e['monto'])
+        if e['monto'] > 0 else float('inf') for e in evaluaciones
+    }
+
+    recomendaciones = []
+
+    recomendaciones.append({
+        'type': 'sacrificio_comision',
+        'label': 'Sacrificio de Comisión',
+        'active': bool(reglas.get('sacrificio_comision', {}).get('activa')),
+        'valor': sacrificio_pct,
+        'recommended': peor['cuota'] < 1.0 and cuotas_con_sacrificio[peor['pronostico']] >= 1.0,
+        'reason': f"La cuota proyectada para '{peor['pronostico']}' es {peor['cuota']:.2f}. Reduciendo la comisión al {sacrificio_pct:.1f}% la cuota sería {cuotas_con_sacrificio[peor['pronostico']]:.2f}.",
+        'impact': {
+            'cuota_actual': peor['cuota'],
+            'cuota_con_sacrificio': cuotas_con_sacrificio[peor['pronostico']],
+            'pronostico': peor['pronostico']
+        }
+    })
+
+    recomendaciones.append({
+        'type': 'cuota_minima_garantizada',
+        'label': 'Cuota Mínima Garantizada',
+        'active': bool(reglas.get('cuota_minima_garantizada', {}).get('activa')),
+        'valor': cuota_min,
+        'recommended': peor['cuota'] < cuota_min,
+        'reason': f"La cuota para '{peor['pronostico']}' es {peor['cuota']:.2f}, por debajo del mínimo garantizado de {cuota_min:.2f}.",
+        'impact': {
+            'cuota_actual': peor['cuota'],
+            'cuota_minima': cuota_min,
+            'pronostico': peor['pronostico']
+        }
+    })
+
+    bloqueo_recomendado = mayor_exposicion['share'] >= 0.65 or peor['cuota'] < 0.8
+    recomendaciones.append({
+        'type': 'bloqueo_mercado',
+        'label': 'Bloqueo de Mercado',
+        'active': bool(reglas.get('bloqueo_mercado', {}).get('activa')),
+        'valor': float(reglas.get('bloqueo_mercado', {}).get('valor_numerico', 0.0)),
+        'recommended': bloqueo_recomendado,
+        'reason': f"El pronóstico con mayor exposición es '{mayor_exposicion['pronostico']}' con {mayor_exposicion['share']*100:.0f}% del pozo y cuota {mayor_exposicion['cuota']:.2f}.",
+        'impact': {
+            'share': mayor_exposicion['share'],
+            'cuota': mayor_exposicion['cuota'],
+            'pronostico': mayor_exposicion['pronostico']
+        }
+    })
+
+    situacion = 'riesgo' if any(r['recommended'] for r in recomendaciones) else 'estabilidad'
+    resumen = 'Se recomienda ajustar el escudo anti-pérdidas.' if situacion == 'riesgo' else 'El sistema no requiere intervención de escudo en este momento.'
+
+    return {
+        'summary': resumen,
+        'situacion': situacion,
+        'suggestions': recomendaciones,
+        'meta': {
+            'total_bruto': float(total_bruto),
+            'total_apostado': float(total_apostado),
+            'peor_cuota': peor['cuota'],
+            'mayor_exposicion': mayor_exposicion
+        }
+    }
 
 
 def aplicar_escudo_anti_perdidas(pozo_bruto, total_apostado_ganador, comision_casa):

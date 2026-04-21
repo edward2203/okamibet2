@@ -104,6 +104,20 @@ def init_db():
                             activa INTEGER DEFAULT 0,
                             valor_numerico DECIMAL(10,4) DEFAULT 0.0
                           )''')
+        
+        cursor.execute('''CREATE TABLE IF NOT EXISTS logs_sistema (
+                            id SERIAL PRIMARY KEY,
+                            tipo VARCHAR(20) NOT NULL,
+                            titulo VARCHAR(255) NOT NULL,
+                            descripcion TEXT,
+                            usuario VARCHAR(100) DEFAULT 'SISTEMA',
+                            detalles TEXT,
+                            fecha TIMESTAMP DEFAULT NOW()
+                          )''')
+        
+        # Crear índice para optimizar búsquedas de logs
+        cursor.execute('''CREATE INDEX IF NOT EXISTS idx_logs_fecha ON logs_sistema(fecha DESC)''')
+        cursor.execute('''CREATE INDEX IF NOT EXISTS idx_logs_tipo ON logs_sistema(tipo)''')
 
         # Semillas de reglas del escudo (solo si no existen)
         shield_rules = [

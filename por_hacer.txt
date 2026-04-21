@@ -1,0 +1,6 @@
+en este panel de alertas y actividades recientes, vamos a modificarlo para que sea nuestro log de sistema y capture todo lo que pasa y sea reflejado alli, para asi poder, asi podremos ver si esta en linea, si existe alguna falla, se realizo un cambio con su respectivo detalle por log, que tambien pueda ser exportable en txt.
+
+en vision general: volumen de dinero en juego dice 20,Comissão Bruta Recaudada
+R$ 2.00, 
+poder tener informacion sobre a como estan las cuotas de los partidos
+para poder tener referencias

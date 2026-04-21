@@ -11,16 +11,50 @@ from app.services.db import transaction
 # ─── Diccionarios estáticos ───────────────────────────────────────────────────
 DICCIONARIO_IDIOMAS = {
     "es": {
-        "ganador_txt":       "ganó",
-        "cuota_txt":         "Cuota",
-        "pozo_txt":          "Pozo Total",
-        "participantes_txt": "Apostadores"
+        "ganador_txt": "ganó",
+        "cuota_txt": "Cuota",
+        "pozo_txt": "Pozo Total",
+        "participantes_txt": "Apostadores",
+        "header_subtitle": "Hoy 16:00",
+        "usuario_label": "Usuario",
+        "pin_label": "PIN",
+        "pin_placeholder": "••••",
+        "monto_label": "Monto de Apuesta",
+        "pronostico_label": "Elige Resultado",
+        "victoria": "Victoria",
+        "empate": "Empate",
+        "premio_estimado": "Premio Estimado",
+        "cotacao": "Cuota",
+        "apuesta": "Apuesta",
+        "lucro_puro": "Lucro neto",
+        "apostar_btn": "APOSTAR AHORA",
+        "solicitar_btn": "SOLICITAR REGISTRO / SALDO",
+        "minimo_apuesta": "Apuesta mínima",
+        "maximo_disponible": "Máximo disponible",
+        "pozo_info": "Total oculto para cálculo de pago"
     },
     "pt": {
-        "ganador_txt":       "ganhou",
-        "cuota_txt":         "Cota",
-        "pozo_txt":          "Total Acumulado",
-        "participantes_txt": "Apostadores"
+        "ganador_txt": "ganhou",
+        "cuota_txt": "Cota",
+        "pozo_txt": "Total Acumulado",
+        "participantes_txt": "Apostadores",
+        "header_subtitle": "Hoje 16:00",
+        "usuario_label": "Usuário",
+        "pin_label": "PIN",
+        "pin_placeholder": "••••",
+        "monto_label": "Valor da Aposta",
+        "pronostico_label": "Escolha o Resultado",
+        "victoria": "Vitória",
+        "empate": "Empate",
+        "premio_estimado": "Prêmio Estimado",
+        "cotacao": "Cotação",
+        "apuesta": "Aposta",
+        "lucro_puro": "Lucro puro",
+        "apostar_btn": "APOSTAR AGORA",
+        "solicitar_btn": "SOLICITAR CADASTRO / SALDO",
+        "minimo_apuesta": "Aposta mínima",
+        "maximo_disponible": "Máximo disponível",
+        "pozo_info": "Total escamoteado para cálculo de pagamento"
     }
 }
 
@@ -68,6 +102,10 @@ def inicio():
     # 3. Pozo visible (descontada la comisión)
     pozo_visible = calcular_pozo_visible(total_sistema)
 
+    lang = request.args.get('lang', 'pt')
+    if lang not in DICCIONARIO_IDIOMAS:
+        lang = 'pt'
+
     partido           = configs.get('partido_actual', 'Palmeiras vs São Paulo - Hoje 16:00')
     op1, op2          = extraer_equipos_partido(partido)
     apuestas_cerradas = verificar_cierre_apuestas(partido)
@@ -93,7 +131,10 @@ def inicio():
         primer_apostador  = primer_apostador,
         saldo_semilla     = semilla,
         pozo_acumulado    = acumulado,
-        idiomas           = DICCIONARIO_IDIOMAS
+        cierre_minutos_antes = configs.get('cierre_minutos_antes') or 10,
+        idiomas           = DICCIONARIO_IDIOMAS,
+        idioma           = DICCIONARIO_IDIOMAS[lang],
+        lang_actual      = lang
     )
 
 

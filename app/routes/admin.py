@@ -3,7 +3,8 @@ from flask import render_template, request, redirect, url_for, jsonify
 from . import admin_bp
 from app.services.validacion import validar_acceso_admin
 from app.services.calculos import extraer_equipos_partido, procesar_limpiar_pozo_completo
-from app.models.configuracion import get_config_batch, set_config
+from app.services.football_api import obtener_partidos_externos
+from app.models.configuracion import get_config_batch, set_config, get_config
 from app.database import get_db, release_db
 from app.models.ganancia import GananciaModel
 from app.models.apuesta import ApuestaModel
@@ -113,11 +114,16 @@ def admin_crear_usuario():
 @admin_bp.route('/guardar_partido', methods=['POST'])
 def guardar_partido():
     """Actualiza configuración del partido y todos los parámetros del formulario."""
+    # Validar contraseña antes de actualizar
+    if not validar_acceso_admin(request.form.get('admin_pass')):
+        return redirect(url_for('admin.vista_admin', error="admin_pass_incorrecto"))
+    
     try:
         campos = [
             'partido_actual', 'comision', 'min_apuesta', 'max_apuesta',
             'cuota_maxima', 'bono_registro', 'bono_primer_apostador',
             'cierre_minutos_antes', 'saldo_semilla', 'pozo_acumulado',
+            'api_key'
         ]
         for campo in campos:
             valor = request.form.get(campo)
@@ -127,6 +133,19 @@ def guardar_partido():
         return redirect(url_for('admin.vista_admin', exito="config_actualizada"))
     except Exception as e:
         return redirect(url_for('admin.vista_admin', error=f"error_guardado: {e}"))
+
+
+@admin_bp.route('/partidos_api', methods=['GET'])
+def partidos_api():
+    """Busca partidos externos y devuelve opciones para el admin."""
+    partidos = obtener_partidos_externos()
+    if not partidos:
+        return jsonify({
+            "partidos": [],
+            "error": "No se encontraron partidos programados o error en las APIs disponibles."
+        }), 200
+
+    return jsonify({"partidos": partidos}), 200
 
 
 @admin_bp.route('/configurar_reglas_pro', methods=['POST'])
@@ -146,6 +165,33 @@ def configurar_reglas_pro():
         return redirect(url_for('admin.vista_admin', exito="reglas_actualizadas"))
     except Exception as e:
         return redirect(url_for('admin.vista_admin', error="error_reglas"))
+
+
+@admin_bp.route('/reset_reglas', methods=['POST'])
+def reset_reglas():
+    """Resetea todas las reglas del juego a valores por defecto (ceros)."""
+    if not validar_acceso_admin(request.form.get('admin_pass')):
+        return redirect(url_for('admin.vista_admin', error="clave_incorrecta"))
+    
+    try:
+        campos_reset = [
+            ('saldo_semilla', '0.0'),
+            ('pozo_acumulado', '0.0'),
+            ('min_apuesta', '20.0'),
+            ('max_apuesta', '200.0'),
+            ('cuota_maxima', '10.0'),
+            ('comision', '10.0'),
+            ('bono_registro', '5.0'),
+            ('bono_primer_apostador', '1.3'),
+            ('cierre_minutos_antes', '5'),
+        ]
+        
+        for campo, valor_default in campos_reset:
+            set_config(campo, valor_default)
+        
+        return redirect(url_for('admin.vista_admin', exito="reglas_resetadas"))
+    except Exception as e:
+        return redirect(url_for('admin.vista_admin', error=f"error_reset: {e}"))
 
 
 @admin_bp.route('/finalizar_rodada', methods=['POST'])

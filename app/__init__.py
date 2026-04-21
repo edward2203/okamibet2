@@ -4,7 +4,7 @@ from app.services.db import init_db, aplicar_migraciones
 def create_app():
     """Fábrica de Aplicaciones: Construye la topología base de Flask."""
     app = Flask(__name__, template_folder='../templates', static_folder='../static')
-    app.secret_key = 'edward_brf_2026_key'
+    app.secret_key = 'okamibet_2026_key'
 
     # 1. Inicialización de la Infraestructura de Datos
     with app.app_context():

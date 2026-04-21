@@ -47,4 +47,3 @@ def release_db(conn):
     if _connection_pool and conn:
         _connection_pool.putconn(conn)
 
-
