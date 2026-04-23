@@ -4,6 +4,7 @@ from . import api_bp
 from app.database import get_db, release_db
 from app.models.configuracion import get_config
 from app.models.apuesta import ApuestaModel
+from app.models.log import LogModel
 from app.services.calculos import extraer_equipos_partido, calcular_recomendaciones_escudo
 import psycopg2.extras
 
@@ -121,3 +122,61 @@ def update_shield_rules():
         release_db(conn)
 
     return jsonify({"status": "success", "message": "Regla actualizada"})
+
+
+@api_bp.route('/registrar_evento', methods=['POST'])
+def registrar_evento():
+    """
+    Registra un evento en el log del sistema
+    
+    Body JSON:
+    {
+        "tipo": "info|success|warning|error|config",
+        "titulo": "Título del evento",
+        "descripcion": "Descripción corta",
+        "usuario": "usuario (opcional)",
+        "detalles": "JSON string (opcional)"
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        tipo = data.get('tipo', 'info')
+        titulo = data.get('titulo', 'Evento sin título')
+        descripcion = data.get('descripcion', '')
+        usuario = data.get('usuario', 'WEB')
+        detalles = data.get('detalles', '')
+        
+        LogModel.registrar(tipo, titulo, descripcion, usuario, detalles)
+        
+        return jsonify({'status': 'ok', 'mensaje': 'Evento registrado'}), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'mensaje': str(e)}), 500
+
+
+@api_bp.route('/obtener_logs', methods=['GET'])
+def obtener_logs():
+    """Obtiene los últimos logs (máximo 100)"""
+    try:
+        limite = request.args.get('limite', 50, type=int)
+        if limite > 100:
+            limite = 100
+        
+        logs = LogModel.obtener_ultimos(limite)
+        
+        # Convertir fechas a string
+        logs_serializable = []
+        for log in logs:
+            logs_serializable.append({
+                'id': log['id'],
+                'tipo': log['tipo'],
+                'titulo': log['titulo'],
+                'descripcion': log['descripcion'],
+                'usuario': log['usuario'],
+                'detalles': log['detalles'],
+                'fecha': log['fecha'].isoformat() if log['fecha'] else None
+            })
+        
+        return jsonify({'status': 'ok', 'logs': logs_serializable}), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'mensaje': str(e)}), 500

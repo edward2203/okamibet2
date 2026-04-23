@@ -1,6 +1,22 @@
-en este panel de alertas y actividades recientes, vamos a modificarlo para que sea nuestro log de sistema y capture todo lo que pasa y sea reflejado alli, para asi poder, asi podremos ver si esta en linea, si existe alguna falla, se realizo un cambio con su respectivo detalle por log, que tambien pueda ser exportable en txt.
-
 en vision general: volumen de dinero en juego dice 20,Comissão Bruta Recaudada
 R$ 2.00, 
 poder tener informacion sobre a como estan las cuotas de los partidos
 para poder tener referencias
+en los log de sistema, efectivamente captura todo lo que se hace
+pero no detalla y eso es lo mas importante, cada log deberia tener su descripcion detallada
+como por ejemplo 5 parametros modificados, pero cuales ?? colocar un calendario para poder buscar por fechas
+
+[1] ⚙️ Configuración Actualizada
+    5 parámetro(s) modificado(s)
+    👤 ADMIN • 22/04 11:50:28
+
+[2] ⚙️ Configuración Actualizada
+    1 parámetro(s) modificado(s)
+    👤 ADMIN • 22/04 11:49:29
+el sistema debe capturar todo lo que el apostador hace, esde las llamadas de cadastro
+intentos de apuestas duplicadas etc etc etc 
+por cuestion de seguridad, vamos a implementar el cadastro, de la siguente manera:
+Nombre, Correo, whatssapp,usuario, 
+EN CADASTRO MANDA A LA PAGINA DEL ADMINISTRADOR, DEBERIA MANDAR A UN whatssapp PARA PEDIR CADASTRO
+
+como es posible tener en usuarios registrados y apuestas activas da rodada tenemos unas jugadas palmeiras vs sao paulo, arriba estamos con un partido activo ckube do remo vs cruzeiros para el dia 25/04 y en finalizar rodada- pagar premios e regitrar ganacias: resultado final aparece clube remo, empate, cruzeiros, ademas no existe un boton para limpiar jugadas independientemente de si haya o no jugadas activas, solo tiene liquidar rodada(pagar Premios+registrar ganancias)

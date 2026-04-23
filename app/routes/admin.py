@@ -5,6 +5,7 @@ from app.services.validacion import validar_acceso_admin
 from app.services.calculos import extraer_equipos_partido, procesar_limpiar_pozo_completo
 from app.services.football_api import obtener_partidos_externos
 from app.models.configuracion import get_config_batch, set_config, get_config
+from app.models.log import LogModel
 from app.database import get_db, release_db
 from app.models.ganancia import GananciaModel
 from app.models.apuesta import ApuestaModel
@@ -73,6 +74,7 @@ def vista_admin():
         op1=op1, op2=op2,
         ganancias_admin=GananciaModel.obtener_historial_admin(),
         historial=historial,
+        logs_sistema=LogModel.obtener_ultimos(100),
         configs=configs,
         primer_apostador=ApuestaModel.obtener_primer_apostador() or ''
     )
@@ -102,8 +104,24 @@ def admin_crear_usuario():
             (usuario,)
         )
         conn.commit()
-    except Exception:
+        
+        # Registrar evento en log
+        LogModel.registrar(
+            tipo='success',
+            titulo='👤 Nuevo Usuario Creado',
+            descripcion=f'Usuario: {usuario}',
+            usuario='ADMIN',
+            detalles=f'Saldo inicial: R$ {saldo:.2f}'
+        )
+    except Exception as e:
         conn.rollback()
+        LogModel.registrar(
+            tipo='error',
+            titulo='❌ Error al Crear Usuario',
+            descripcion=f'Usuario: {usuario}',
+            usuario='ADMIN',
+            detalles=str(e)
+        )
         return redirect(url_for('admin.vista_admin', error="usuario_duplicado"))
     finally:
         release_db(conn)
@@ -119,19 +137,40 @@ def guardar_partido():
         return redirect(url_for('admin.vista_admin', error="admin_pass_incorrecto"))
     
     try:
+        cambios = []
         campos = [
             'partido_actual', 'comision', 'min_apuesta', 'max_apuesta',
             'cuota_maxima', 'bono_registro', 'bono_primer_apostador',
             'cierre_minutos_antes', 'saldo_semilla', 'pozo_acumulado',
             'api_key'
         ]
+        
         for campo in campos:
-            valor = request.form.get(campo)
-            if valor is not None and valor.strip() != '':
-                set_config(campo, valor.strip())
-
+            valor_nuevo = request.form.get(campo)
+            if valor_nuevo is not None and valor_nuevo.strip() != '':
+                valor_anterior = get_config(campo)
+                if str(valor_anterior) != valor_nuevo.strip():
+                    cambios.append(f"{campo}: {valor_anterior} → {valor_nuevo.strip()}")
+                    set_config(campo, valor_nuevo.strip())
+        
+        # Registrar evento en log
+        if cambios:
+            LogModel.registrar(
+                tipo='config',
+                titulo='⚙️ Configuración Actualizada',
+                descripcion=f'{len(cambios)} parámetro(s) modificado(s)',
+                usuario='ADMIN',
+                detalles=' | '.join(cambios)
+            )
+        
         return redirect(url_for('admin.vista_admin', exito="config_actualizada"))
     except Exception as e:
+        LogModel.registrar(
+            tipo='error',
+            titulo='❌ Error al Actualizar Configuración',
+            descripcion=str(e),
+            usuario='ADMIN'
+        )
         return redirect(url_for('admin.vista_admin', error=f"error_guardado: {e}"))
 
 
@@ -209,8 +248,24 @@ def admin_finalizar_rodada():
 
     ok, mensaje = procesar_limpiar_pozo_completo(resultado_ganador)
     if ok:
+        # Registrar evento exitoso
+        LogModel.registrar(
+            tipo='success',
+            titulo='✅ Rodada Finalizada',
+            descripcion=f'Resultado ganador: {resultado_ganador}',
+            usuario='ADMIN',
+            detalles=mensaje
+        )
         return redirect(url_for('admin.vista_admin', exito=mensaje))
     else:
+        # Registrar evento de error
+        LogModel.registrar(
+            tipo='error',
+            titulo='❌ Error al Finalizar Rodada',
+            descripcion=f'Resultado: {resultado_ganador}',
+            usuario='ADMIN',
+            detalles=mensaje
+        )
         return redirect(url_for('admin.vista_admin', error=mensaje))
 
 

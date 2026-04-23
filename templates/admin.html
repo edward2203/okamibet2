@@ -189,16 +189,28 @@
       background-color: var(--bg-card);
       border-radius: 8px; padding: 18px;
       border: 1px solid var(--border-color);
+      max-height: 500px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
     }
-    .alerts-panel h3 { font-size: 0.95rem; margin-bottom: 14px; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
+    .alerts-panel h3 { font-size: 0.95rem; margin-bottom: 14px; color: var(--text-main); display: flex; align-items: center; gap: 8px; justify-content: space-between; }
     .alerts-panel h3 i { color: var(--accent-orange); }
-    .alert-item { display: flex; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border-color); align-items: flex-start; }
+    .logs-container { flex: 1; overflow-y: auto; }
+    .alert-item { display: flex; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border-color); align-items: flex-start; font-size: 0.85rem; }
     .alert-item:last-child { border-bottom: none; }
-    .alert-ico { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+    .alert-ico { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; flex-shrink: 0; }
     .alert-ico.success { background: rgba(39,174,96,0.12); color: var(--success-green); }
-    .alert-ico.danger  { background: rgba(231,76,60,0.12);  color: var(--danger-red); }
-    .alert-text h4 { font-size: 0.88rem; margin-bottom: 3px; }
-    .alert-text p  { font-size: 0.78rem; color: var(--text-muted); }
+    .alert-ico.warning { background: rgba(241,196,15,0.12); color: #f39c12; }
+    .alert-ico.error  { background: rgba(231,76,60,0.12);  color: var(--danger-red); }
+    .alert-ico.info { background: rgba(52,152,219,0.12); color: var(--info-blue); }
+    .alert-ico.config { background: rgba(155,89,182,0.12); color: var(--purple); }
+    .alert-text { flex: 1; }
+    .alert-text h4 { font-size: 0.85rem; margin-bottom: 2px; color: var(--text-main); }
+    .alert-text p  { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 2px; }
+    .alert-text .tiempo { font-size: 0.70rem; color: #666; font-style: italic; }
+    .btn-export-logs { background: #2ecc71; color: #000; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: bold; transition: 0.2s; }
+    .btn-export-logs:hover { background: #27ae60; }
 
     /* ===== SECTION BOX ===== */
     .seccion-box {
@@ -390,35 +402,40 @@
           <canvas id="revenueChart" height="110"></canvas>
         </div>
         <div class="alerts-panel">
-          <h3>Alertas e Atividade Recente <i class="fa-solid fa-triangle-exclamation"></i></h3>
-          <div class="alert-item">
-            <div class="alert-ico success"><i class="fa-solid fa-hand-pointer"></i></div>
-            <div class="alert-text">
-              <h4>Apostas Entrada: R$ {{ "%.0f"|format((resumen_bolsa.values()|map(attribute='total')|sum|float)) }}</h4>
-              <p>Rodada atual em andamento</p>
-            </div>
+          <h3>
+            📋 Log del Sistema <i class="fa-solid fa-triangle-exclamation"></i>
+            <button type="button" class="btn-export-logs" onclick="exportarLogsATexto()">📥 EXPORTAR TXT</button>
+          </h3>
+          <div class="logs-container">
+            {% if logs_sistema %}
+              {% for log in logs_sistema %}
+              <div class="alert-item">
+                <div class="alert-ico {% if log.tipo == 'success' %}success{% elif log.tipo == 'error' or log.tipo == 'warning' %}error{% elif log.tipo == 'info' %}info{% else %}config{% endif %}">
+                  {% if log.tipo == 'success' %}<i class="fa-solid fa-check"></i>
+                  {% elif log.tipo == 'error' %}<i class="fa-solid fa-circle-xmark"></i>
+                  {% elif log.tipo == 'warning' %}<i class="fa-solid fa-triangle-exclamation"></i>
+                  {% elif log.tipo == 'config' %}<i class="fa-solid fa-gear"></i>
+                  {% else %}<i class="fa-solid fa-circle-info"></i>
+                  {% endif %}
+                </div>
+                <div class="alert-text">
+                  <h4>{{ log.titulo }}</h4>
+                  <p>{{ log.descripcion }}</p>
+                  <div class="tiempo">👤 {{ log.usuario }} • {{ log.fecha.strftime('%d/%m %H:%M:%S') if log.fecha else '—' }}</div>
+                </div>
+              </div>
+              {% endfor %}
+            {% else %}
+              <div class="alert-item">
+                <div class="alert-ico info"><i class="fa-solid fa-circle-info"></i></div>
+                <div class="alert-text">
+                  <h4>Sistema en línea</h4>
+                  <p>No hay eventos registrados aún</p>
+                </div>
+              </div>
+            {% endif %}
           </div>
-          <div class="alert-item">
-            <div class="alert-ico success"><i class="fa-solid fa-user-plus"></i></div>
-            <div class="alert-text">
-              <h4>{{ usuarios|length }} usuário(s) registrado(s)</h4>
-              <p>Total na plataforma</p>
-            </div>
-          </div>
-          <div class="alert-item">
-            <div class="alert-ico danger"><i class="fa-solid fa-triangle-exclamation"></i></div>
-            <div class="alert-text">
-              <h4>Alerta de Sistema</h4>
-              <p>Verifique as configurações do escudo anti-perdas.</p>
-            </div>
-          </div>
-          <div class="alert-item">
-            <div class="alert-ico danger"><i class="fa-solid fa-triangle-exclamation"></i></div>
-            <div class="alert-text">
-              <h4>Alerta de Sistema</h4>
-              <p>Falha na rede, tentando reconectar ao sistema.</p>
-            </div>
-          </div>
+        </div>
         </div>
       </div>
 
@@ -899,6 +916,35 @@ function ejecutarSimulacion() {
 }
 
 document.addEventListener('DOMContentLoaded', cargarEscudo);
+
+// ===== EXPORTAR LOGS A TXT =====
+function exportarLogsATexto() {
+  const logsElements = document.querySelectorAll('.alert-item');
+  let contenido = `OKAMI BET v4 - LOG DEL SISTEMA\n`;
+  contenido += `Generado: ${new Date().toLocaleString()}\n`;
+  contenido += `${'='.repeat(80)}\n\n`;
+  
+  logsElements.forEach((el, idx) => {
+    const titulo = el.querySelector('h4')?.textContent || '';
+    const descripcion = el.querySelector('p')?.textContent || '';
+    const tiempo = el.querySelector('.tiempo')?.textContent || '';
+    
+    contenido += `[${idx + 1}] ${titulo}\n`;
+    contenido += `    ${descripcion}\n`;
+    contenido += `    ${tiempo}\n\n`;
+  });
+  
+  // Crear blob y descargar
+  const blob = new Blob([contenido], { type: 'text/plain;charset=utf-8' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.href = url;
+  link.download = `okami-logs-${new Date().getTime()}.txt`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
 </script>
 
 <script src="{{ url_for('static', filename='js/admin/admin-main.js') }}"></script>

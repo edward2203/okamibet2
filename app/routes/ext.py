@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from app.models.configuracion import get_config
+from app.models.log import LogModel
 from app.services.db import obtener_conexion
 from app.services.bot_bridge import notificar_admin_telegram, responder_cliente_whatsapp
 import requests
