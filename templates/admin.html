@@ -21,6 +21,16 @@
       --purple: #9b59b6;
     }
 
+    /* Quitar spin buttons (scroll) de inputs numéricos */
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    input[type="number"] {
+        -moz-appearance: textfield;
+    }
+
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
 
     html {
@@ -194,8 +204,16 @@
       display: flex;
       flex-direction: column;
     }
+    .config-panel {
+      background-color: var(--bg-card);
+      border-radius: 8px; padding: 18px;
+      border: 1px solid var(--border-color);
+      max-height: 500px;
+      overflow-y: auto;
+    }
     .alerts-panel h3 { font-size: 0.95rem; margin-bottom: 14px; color: var(--text-main); display: flex; align-items: center; gap: 8px; justify-content: space-between; }
     .alerts-panel h3 i { color: var(--accent-orange); }
+    .config-panel h3 { font-size: 0.95rem; margin-bottom: 14px; color: var(--text-main); }
     .logs-container { flex: 1; overflow-y: auto; }
     .alert-item { display: flex; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border-color); align-items: flex-start; font-size: 0.85rem; }
     .alert-item:last-child { border-bottom: none; }
@@ -228,9 +246,10 @@
     }
 
     /* ===== TABLES ===== */
-    .seccion-box table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
-    .seccion-box th { background-color: #1a1e23; padding: 10px 12px; text-align: left; color: #aaa; font-weight: 600; border-bottom: 2px solid var(--border-color); }
-    .seccion-box td { padding: 10px 12px; border-bottom: 1px solid var(--border-color); }
+    .table-wrapper { overflow-x: auto; border-radius: 4px; }
+    .seccion-box table { width: 100%; border-collapse: collapse; font-size: 0.86rem; table-layout: auto; min-width: 100%; }
+    .seccion-box th { background-color: #1a1e23; padding: 10px 12px; text-align: left; color: #aaa; font-weight: 600; border-bottom: 2px solid var(--border-color); white-space: nowrap; min-width: 80px; }
+    .seccion-box td { padding: 10px 12px; border-bottom: 1px solid var(--border-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .text-green  { color: var(--success-green); font-weight: bold; }
     .text-blue   { color: var(--info-blue); font-weight: bold; }
     .text-orange { color: var(--accent-orange); font-weight: bold; }
@@ -341,7 +360,7 @@
         <i class="fa-regular fa-bell topbar-icon"></i>
         <i class="fa-regular fa-comment topbar-icon"></i>
         <div class="user-profile">
-          <img src="https://picsum.photos/seed/admin/100" alt="Admin" class="user-avatar">
+          <i class="fa-solid fa-user-gear" style="font-size:1.5rem; color:var(--accent-orange);"></i>
           <div class="user-info">
             <span>Admin</span>
             <strong>Edward</strong>
@@ -356,12 +375,160 @@
 
       <h1 class="page-title">Visão Geral <span>/ Dashboard Administrativo</span></h1>
 
-      {% if request.args.get('error') %}
-      <div class="flash-error">❌ {{ request.args.get('error') }}</div>
+    {% if request.args.get('error') %}
+      <div class="flash-error">❌ 
+        {% set error_code = request.args.get('error') %}
+        {% if error_code == 'email_duplicado' %}
+          Email ya registrado. Por favor use otro correo electrónico.
+        {% elif error_code == 'telefono_duplicado' %}
+          Teléfono ya registrado. Por favor use otro número.
+        {% elif error_code == 'usuario_duplicado' %}
+          Usuario ya existe. Elija otro nombre de usuario.
+        {% elif error_code == 'saldo_invalido' %}
+          Saldo inválido. Debe ser un número.
+        {% elif error_code == 'no_usuarios_selecionados' %}
+          Nenhum usuário selecionado para borrado masivo.
+        {% elif error_code == 'error_eliminar_usuarios' %}
+          Error al eliminar usuarios seleccionados.
+        {% elif error_code == 'no_usuarios_teste' %}
+          Nenhum usuário de teste encontrado.
+        {% elif error_code == 'error_eliminar_testes' %}
+          Error al eliminar usuarios de teste.
+        {% else %}
+          {{ error_code }}
+        {% endif %}
+      </div>
+      <script>
+        // Limpiar campos si hubo error de duplicado
+        if (window.location.search.includes('usuario_duplicado') || 
+            window.location.search.includes('email_duplicado') || 
+            window.location.search.includes('telefono_duplicado')) {
+            document.querySelector('input[name="usuario"]').value = '';
+            document.querySelector('input[name="email"]').value = '';
+            document.querySelector('input[name="telefono"]').value = '';
+        }
+// ===== GESTIÓN DE USUARIOS (CHECKBOXES) =====
+function actualizarBotones() {
+  const checkboxes = document.querySelectorAll('.chk_usuario:checked');
+  const btnModificar = document.getElementById('btn_modificar');
+  const btnEliminar = document.getElementById('btn_eliminar');
+  
+  // MODIFICAR: solo habilitado si hay exactamente 1 usuario seleccionado
+  if (checkboxes.length === 1) {
+    btnModificar.disabled = false;
+    btnModificar.style.opacity = '1';
+    btnModificar.style.cursor = 'pointer';
+  } else {
+    btnModificar.disabled = true;
+    btnModificar.style.opacity = '0.5';
+    btnModificar.style.cursor = 'default';
+  }
+  
+  // ELIMINAR: habilitado si hay 1 o más usuarios seleccionados
+  if (checkboxes.length >= 1) {
+    btnEliminar.disabled = false;
+    btnEliminar.style.opacity = '1';
+    btnEliminar.style.cursor = 'pointer';
+  } else {
+    btnEliminar.disabled = true;
+    btnEliminar.style.opacity = '0.5';
+    btnEliminar.style.cursor = 'default';
+  }
+}
+
+function selecionarTodos(checked) {
+  document.querySelectorAll('.chk_usuario').forEach(chk => {
+    chk.checked = typeof checked === 'boolean' ? checked : chk.checked;
+  });
+  actualizarBotones();
+}
+
+function modificarSelecionado() {
+  const checkboxes = document.querySelectorAll('.chk_usuario:checked');
+  if (checkboxes.length !== 1) {
+    alert('❌ Seleccione exactamente 1 usuario para modificar.');
+    return;
+  }
+  
+  const usuario = checkboxes[0].value;
+  // Obtener datos del usuario de la fila
+  const fila = checkboxes[0].closest('tr');
+  const celdas = fila.querySelectorAll('td');
+  const pin = celdas[2].textContent.trim();
+  const email = celdas[3].textContent.trim();
+  const telefono = celdas[4].textContent.trim();
+  const saldo = parseFloat(celdas[5].textContent.replace('R$ ', '').replace(',', '.'));
+  
+  editarUsuario(usuario, pin, email === '—' ? '' : email, telefono === '—' ? '' : telefono, saldo || 0);
+}
+
+function eliminarUsuarioIndividual(usuario) {
+  if (!confirm(`⚠️ ¿Eliminar usuario "${usuario}"?\n\nEsta acción NO se puede deshacer.`)) {
+    return;
+  }
+  
+  const adminPass = prompt('Ingresa tu contraseña de administrador:');
+  if (!adminPass) return;
+  
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = '{{ url_for("admin.eliminar_usuarios_selecionados") }}';
+  
+  const inputUsuarios = document.createElement('input');
+  inputUsuarios.type = 'hidden';
+  inputUsuarios.name = 'usuarios_selecionados';
+  inputUsuarios.value = usuario;
+  
+  const inputPass = document.createElement('input');
+  inputPass.type = 'hidden';
+  inputPass.name = 'admin_pass';
+  inputPass.value = adminPass;
+  
+  form.appendChild(inputUsuarios);
+  form.appendChild(inputPass);
+  document.body.appendChild(form);
+  form.submit();
+}
+
+function confirmarBorradoMasivo() {
+  const checkboxes = document.querySelectorAll('.chk_usuario:checked');
+  if (checkboxes.length === 0) {
+    alert('❌ Nenhum usuário selecionado.');
+    return false;
+  }
+  
+  const usuarios = Array.from(checkboxes).map(chk => chk.value);
+  document.getElementById('input_usuarios_selecionados').value = usuarios.join(',');
+  
+  return confirm(`⚠️ ¿Eliminar ${usuarios.length} usuário(s) selecionado(s)?\n\n${usuarios.join(', ')}\n\nEsta acción NO se puede deshacer.`);
+}
+
+// Agregar event listeners a los checkboxes
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.chk_usuario').forEach(chk => {
+    chk.addEventListener('change', actualizarBotones);
+  });
+  actualizarBotones();
+});
+
+</script>
+    {% endif %}
+    {% if request.args.get('exito') %}
+    <div class="flash-success">✅ 
+      {% set exito_code = request.args.get('exito') %}
+      {% if exito_code == 'usuario_creado' %}
+        Usuario creado exitosamente.
+      {% elif exito_code == 'usuario_eliminado' %}
+        Usuario eliminado exitosamente.
+      {% elif 'usuarios_eliminados' in exito_code %}
+        {{ exito_code.split('_')[0] }} usuário(s) eliminado(s) exitosamente.
+      {% elif 'usuarios_teste_eliminados' in exito_code %}
+        {{ exito_code.split('_')[0] }} usuários de teste eliminados exitosamente.
+      {% else %}
+        {{ exito_code }}
       {% endif %}
-      {% if request.args.get('exito') %}
-      <div class="flash-success">✅ {{ request.args.get('exito') }}</div>
-      {% endif %}
+    </div>
+    {% endif %}
 
       <!-- KPI CARDS -->
       <div class="stats-grid">
@@ -397,14 +564,38 @@
 
       <!-- CHART + ALERTS -->
       <div class="bottom-grid">
-        <div class="chart-panel">
-          <h3>Tendência de Receita Mensal</h3>
-          <canvas id="revenueChart" height="110"></canvas>
+        <div class="config-panel">
+          <h3>📋 CONFIGURACIÓN ACTUAL</h3>
+          <div style="background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.24); border-radius:8px; padding:12px; margin-bottom:14px; font-size:0.82rem;">
+            <div style="color:var(--text-muted); font-weight:600; margin-bottom:8px;">📋 CONFIGURACIÓN ACTUAL:</div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:8px;">
+              {% for clave, valor in configs.items()|sort %}
+                {% if clave != 'admin_pass' and clave != 'api_key' %}
+                <div>
+                  <span style="color:#888;">{{ clave|replace('_', ' ')|title }}:</span>
+                  <strong>
+                    {% if 'saldo' in clave or 'pozo' in clave or 'apuesta' in clave or 'bono' in clave %}
+                      R$ {{ "%.2f"|format(valor|default('0.00')|float) }}
+                    {% elif 'cuota' in clave %}
+                      {{ "%.1f"|format(valor|default('0.0')|float) }}x
+                    {% elif 'comision' in clave %}
+                      {{ valor|default('0') }}%
+                    {% else %}
+                      {{ valor|default('') }}
+                    {% endif %}
+                  </strong>
+                </div>
+                {% endif %}
+              {% endfor %}
+            </div>
+          </div>
         </div>
+        
         <div class="alerts-panel">
           <h3>
             📋 Log del Sistema <i class="fa-solid fa-triangle-exclamation"></i>
             <button type="button" class="btn-export-logs" onclick="exportarLogsATexto()">📥 EXPORTAR TXT</button>
+            <button type="button" class="btn-export-logs" style="background:#e74c3c; margin-left:5px;" onclick="confirmarLimpiarLogs()">🗑️ LIMPAR LOGS</button>
           </h3>
           <div class="logs-container">
             {% if logs_sistema %}
@@ -421,6 +612,13 @@
                 <div class="alert-text">
                   <h4>{{ log.titulo }}</h4>
                   <p>{{ log.descripcion }}</p>
+                  {% if log.detalles %}
+                    <div class="detalles-log" style="margin-top:6px; padding:6px; background:rgba(0,0,0,0.3); border-radius:4px; font-size:0.75rem; font-family:monospace; max-height:100px; overflow-y:auto;">
+                      {% for key, value in log.detalles.items() %}
+                        <div><strong>{{ key }}:</strong> {{ value }}</div>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
                   <div class="tiempo">👤 {{ log.usuario }} • {{ log.fecha.strftime('%d/%m %H:%M:%S') if log.fecha else '—' }}</div>
                 </div>
               </div>
@@ -436,7 +634,7 @@
             {% endif %}
           </div>
         </div>
-        </div>
+      </div>
       </div>
 
       <!-- CONTROL DE RIESGO -->
@@ -501,7 +699,8 @@
       <!-- PARTIDO + REGLAS -->
       <div class="split-layout" id="sec-partido">
         <div class="seccion-box" style="margin-bottom:0;">
-          <h2>⚽ Partida da Semana</h2>
+          <h2>⚙️ Regras do Jogo</h2>
+          
           <form action="{{ url_for('admin.guardar_partido') }}" method="POST">
             <label>Partido actual: <strong style="color:white;">{{ configs.partido_actual }}</strong></label>
             <input type="text" name="partido_actual" placeholder="Ex: Flamengo vs Vasco - Dom 19:00" required>
@@ -513,22 +712,26 @@
         </div>
 
         <div class="seccion-box" id="sec-regras" style="margin-bottom:0;">
-          <h2>⚙️ Regras do Jogo</h2>
+          <h2>⚙️ Regras do Juego</h2>
           
-          <!-- RESUMEN DE REGLAS ACTUALES -->
-          <div style="background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.24); border-radius:8px; padding:12px; margin-bottom:14px; font-size:0.82rem;">
-            <div style="color:var(--text-muted); font-weight:600; margin-bottom:8px;">📋 CONFIGURACIÓN ACTUAL:</div>
-            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:8px;">
-              <div><span style="color:#888;">Semilla:</span> <strong style="color:#10b981;">R$ {{ configs.saldo_semilla|default('0.00') }}</strong></div>
-              <div><span style="color:#888;">Acumulado:</span> <strong style="color:#fbbf24;">R$ {{ configs.pozo_acumulado|default('0.00') }}</strong></div>
-              <div><span style="color:#888;">Apuesta Min:</span> <strong>R$ {{ configs.min_apuesta|default('20.00') }}</strong></div>
-              <div><span style="color:#888;">Apuesta Max:</span> <strong>R$ {{ configs.max_apuesta|default('200.00') }}</strong></div>
-              <div><span style="color:#888;">Cuota Máx:</span> <strong>{{ configs.cuota_maxima|default('10.0') }}x</strong></div>
-              <div><span style="color:#888;">Comisión:</span> <strong>{{ configs.comision|default('10') }}%</strong></div>
-              <div><span style="color:#888;">Bono Registro:</span> <strong>R$ {{ configs.bono_registro|default('5.00') }}</strong></div>
-              <div><span style="color:#888;">Bono 1er Apostador:</span> <strong>{{ configs.bono_primer_apostador|default('1.3') }}x</strong></div>
-              <div><span style="color:#888;">Cierre Apuestas:</span> <strong>{{ configs.cierre_minutos_antes|default('5') }} min</strong></div>
+          <!-- Total Acumulado Display -->
+          <div style="background:rgba(52,152,219,0.08); border:1px solid rgba(52,152,219,0.3); border-radius:8px; padding:12px; margin-bottom:16px;">
+            <div style="color:var(--info-blue); font-weight:600; margin-bottom:8px;">💰 TOTAL ACUMULADO (Pozo Visible)</div>
+            <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; font-size:0.85rem;">
+              <div>
+                <span style="color:#888;">Pozo Real (Apostado):</span>
+                <strong style="color:var(--info-blue);">R$ {{ "%.2f"|format(pozo_real|default(0)) }}</strong>
+              </div>
+              <div>
+                <span style="color:#888;">Acumulado (Config):</span>
+                <strong style="color:#2ecc71;">R$ {{ "%.2f"|format(acumulado|default(0)) }}</strong>
+              </div>
+              <div>
+                <span style="color:#888;">Pozo Visible (-20%):</span>
+                <strong style="color:var(--accent-orange);">R$ {{ "%.2f"|format(pozo_visible|default(0)) }}</strong>
+              </div>
             </div>
+            <div style="font-size:0.75rem; color:#666; margin-top:6px;">* El pozo visible refleja el dinero apostado + acumulado, menos la comisión del 20%</div>
           </div>
           
           <form action="{{ url_for('admin.guardar_partido') }}" method="POST">
@@ -611,69 +814,187 @@
 
 
 
-      <!-- USUARIOS -->
-      <div class="seccion-box" id="sec-usuarios" style="border-color:var(--info-blue);">
-  <h2 style="color:var(--info-blue);">👥 Usuários Registrados e Apostas da Rodada</h2>
-  <table>
-    <thead>
-      <tr><th>USUÁRIO</th><th>PIN</th><th>SALDO (R$)</th><th>APOSTA ATIVA</th><th>MONTO</th><th>BÔNUS</th></tr>
-    </thead>
-    <tbody>
-      {% for u in usuarios %}
-      <tr>
-        <td class="text-blue">{{ u['usuario'] }}</td>
-        <td>{{ u['pin'] }}</td>
-        <td class="text-green">R$ {{ "%.2f"|format(u['saldo']|float) }}</td>
-        <td>
-          {% if u['pronostico_apuesta'] %}
-            <span class="badge-team">{{ u['pronostico_apuesta']|upper }}</span>
-          {% else %}
-            <span style="color:#777;">SEM APOSTA</span>
-          {% endif %}
-        </td>
-        <td>
-          {% if u['monto_apuesta'] %}
-            <strong class="text-orange">R$ {{ "%.2f"|format(u['monto_apuesta']|float) }}</strong>
-          {% else %}-{% endif %}
-        </td>
-        <td>
-          {% if u['usuario'] == primer_apostador %}
-            <span class="badge-gold">⭐ 1er ({{ configs.bono_primer_apostador }}X)</span>
-          {% else %}-{% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+       <!-- NGROK CONTROL -->
+       <div class="seccion-box" style="border-color:var(--purple);">
+         <h2 style="color:var(--purple);">🚀 Controle do Túnel Ngrok</h2>
+         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+           <div>
+             <div style="font-size:0.85rem; color:#aaa; margin-bottom:8px;">
+               Estado: <strong id="ngrok_status_text" style="color:#888;">Verificando...</strong>
+             </div>
+             <div style="font-size:0.82rem; color:#888;" id="ngrok_url_container" style="display:none;">
+               URL Pública: <a href="#" id="ngrok_url_link" target="_blank" style="color:var(--purple); font-weight:bold;"></a>
+             </div>
+           </div>
+           <div style="display:flex; gap:8px;">
+             <button type="button" id="btn_ngrok_start" onclick="ngrokStart()" style="background:var(--success-green); color:white; border:none; padding:8px 16px; border-radius:4px; cursor:pointer; font-weight:bold;">▶ INICIAR</button>
+             <button type="button" id="btn_ngrok_stop" onclick="ngrokStop()" style="background:var(--danger-red); color:white; border:none; padding:8px 16px; border-radius:4px; cursor:pointer; font-weight:bold; display:none;">■ DETENER</button>
+           </div>
+         </div>
+         <div id="ngrok_message" style="font-size:0.82rem; margin-top:8px;"></div>
+       </div>
+
+       <!-- USUARIOS -->
+       <div class="seccion-box" id="sec-usuarios" style="border-color:var(--info-blue);">
+         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+           <h2 style="color:var(--info-blue); margin:0;">👥 Usuários Registrados e Apostas da Rodada</h2>
+           <div style="display:flex; gap:8px; flex-wrap:wrap;">
+             <button type="button" onclick="selecionarTodos(true)" style="background:rgba(52,152,219,0.2); color:var(--info-blue); border:1px solid var(--info-blue); padding:6px 12px; border-radius:4px; cursor:pointer; font-size:0.82rem;">✓ TODOS</button>
+             <button type="button" onclick="selecionarTodos(false)" style="background:rgba(52,152,219,0.2); color:var(--info-blue); border:1px solid var(--info-blue); padding:6px 12px; border-radius:4px; cursor:pointer; font-size:0.82rem;">✗ NINGUÉM</button>
+             <button type="button" id="btn_modificar" onclick="modificarSelecionado()" disabled style="background:rgba(52,152,219,0.2); color:var(--info-blue); border:1px solid var(--info-blue); padding:6px 12px; border-radius:4px; cursor:pointer; font-size:0.82rem; opacity:0.5;">✏️ MODIFICAR</button>
+             <form action="{{ url_for('admin.eliminar_usuarios_selecionados') }}" method="POST" id="form_bulk_delete" onsubmit="return confirmarBorradoMasivo()">
+               <input type="hidden" name="usuarios_selecionados" id="input_usuarios_selecionados">
+               <input type="password" name="admin_pass" placeholder="🔐 Senha Admin" required style="padding:6px 10px; background:#1a1e23; border:1px solid #444; color:#fff; border-radius:4px; font-size:0.82rem;">
+               <button type="submit" id="btn_eliminar" disabled style="background:var(--danger-red); color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:0.82rem; opacity:0.5;">🗑️ ELIMINAR</button>
+             </form>
+             <form action="{{ url_for('admin.eliminar_usuarios_teste') }}" method="POST" onsubmit="return confirm('¿Eliminar TODOS os usuários de teste? (test_*, teste_*)')">
+               <input type="password" name="admin_pass" placeholder="🔐 Senha Admin" required style="padding:6px 10px; background:#1a1e23; border:1px solid #444; color:#fff; border-radius:4px; font-size:0.82rem;">
+               <button type="submit" style="background:var(--accent-orange); color:#000; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:0.82rem;">🧪 BORRAR TESTES</button>
+             </form>
+           </div>
+         </div>
+   <div class="table-wrapper">
+     <table>
+       <thead>
+         <tr>
+           <th style="width:40px; text-align:center; min-width:40px;"><input type="checkbox" onchange="selecionarTodos(this.checked)"></th>
+           <th style="min-width:120px;">USUÁRIO</th>
+           <th style="min-width:60px;">PIN</th>
+           <th style="min-width:150px;">EMAIL</th>
+           <th style="min-width:130px;">TELÉFONO</th>
+           <th style="min-width:100px; text-align:right;">SALDO (R$)</th>
+           <th style="min-width:110px;">APOSTA ATIVA</th>
+           <th style="min-width:100px; text-align:right;">MONTO</th>
+           <th style="min-width:100px;">BÔNUS</th>
+           <th style="min-width:80px; text-align:center;">AÇÕES</th>
+         </tr>
+       </thead>
+     <tbody>
+       {% for u in usuarios %}
+       <tr>
+         <td style="text-align:center;"><input type="checkbox" class="chk_usuario" value="{{ u['usuario'] }}"></td>
+         <td class="text-blue">{{ u['usuario'] }}</td>
+         <td>{{ u['pin'] }}</td>
+         <td>{{ u['email'] or '—' }}</td>
+         <td>{{ u['telefono'] or '—' }}</td>
+         <td class="text-green" style="text-align:right;">R$ {{ "%.2f"|format(u['saldo']|float) }}</td>
+         <td>
+           {% if u['pronostico_apuesta'] %}
+             <span class="badge-team">{{ u['pronostico_apuesta']|upper }}</span>
+           {% else %}
+             <span style="color:#777;">SEM APOSTA</span>
+           {% endif %}
+         </td>
+         <td>
+           {% if u['monto_apuesta'] %}
+             <strong class="text-orange" style="display:block; text-align:right;">R$ {{ "%.2f"|format(u['monto_apuesta']|float) }}</strong>
+           {% else %}<span style="text-align:right; display:block;">—</span>{% endif %}
+         </td>
+         <td>
+           {% if u['usuario'] == primer_apostador %}
+             <span class="badge-gold">⭐ 1er ({{ configs.bono_primer_apostador }}X)</span>
+           {% else %}—{% endif %}
+         </td>
+         <td style="text-align:center;">
+           <button type="button" onclick="editarUsuario('{{ u['usuario'] }}', '{{ u['pin'] }}', '{{ u['email'] or '' }}', '{{ u['telefono'] or '' }}', {{ u['saldo'] }})" style="background:rgba(52,152,219,0.3); color:var(--info-blue); border:1px solid var(--info-blue); padding:4px 8px; border-radius:3px; cursor:pointer; font-size:0.75rem; margin-right:4px;">✏️</button>
+           <button type="button" onclick="eliminarUsuarioIndividual('{{ u['usuario'] }}')" style="background:rgba(231,124,60,0.3); color:var(--danger-red); border:1px solid var(--danger-red); padding:4px 8px; border-radius:3px; cursor:pointer; font-size:0.75rem;">🗑️</button>
+         </td>
+       </tr>
+     {% endfor %}
+       </tbody>
+     </table>
+   </div>
 </div>
 
-      <!-- NUEVO USUARIO -->
-      <div class="seccion-box" style="border-color:var(--success-green);">
-        <h2 style="color:var(--success-green);">👤 Cadastrar Novo Usuário</h2>
-        <form action="{{ url_for('admin.admin_crear_usuario') }}" method="POST">
-          <div style="display:flex; gap:15px; flex-wrap:wrap;">
-            <div style="flex:2; min-width:140px;">
-              <label>Nome de Usuário</label>
-              <input type="text" name="usuario" placeholder="Ex: joao_silva" required>
-            </div>
-            <div style="flex:1; min-width:100px;">
-              <label>PIN</label>
-              <input type="text" name="pin" placeholder="4 dígitos" required>
-            </div>
-            <div style="flex:1; min-width:100px;">
-              <label>Saldo Inicial R$</label>
-              <input type="number" step="0.01" name="saldo" placeholder="0.00" required>
-            </div>
-            <div style="flex:1; min-width:120px; display:flex; align-items:center; padding-top:8px;">
-              <label style="background:#1e3a29; padding:9px; border-radius:4px; border:1px dashed var(--success-green); cursor:pointer; width:100%; text-align:center; color:#2ecc71;">
-                <input type="checkbox" name="aplicar_bono"> + Bônus R$ {{ configs.bono_registro }}
-              </label>
-            </div>
-          </div>
-          <input type="password" name="admin_pass" placeholder="Sua Senha Admin" required>
-          <button type="submit" class="btn-green">CRIAR USUÁRIO</button>
-        </form>
+<!-- MODAL DE EDICIÓN DE USUARIO -->
+<div id="modalEditar" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center;">
+  <div style="background:var(--bg-panel); padding:24px; border-radius:16px; width:90%; max-width:500px; border:1px solid var(--border-color);">
+    <h2 style="color:var(--info-blue); margin-bottom:16px;">✏️ Editar Usuário</h2>
+    <form action="{{ url_for('admin.editar_usuario') }}" method="POST">
+      <input type="hidden" id="edit_usuario_original" name="usuario_original" required>
+      
+      <div style="margin-bottom:12px;">
+        <label>Nome de Usuário</label>
+        <input type="text" id="edit_usuario_nuevo" name="usuario_nuevo" style="width:100%; padding:8px; background:var(--bg-card); border:1px solid var(--border-color); border-radius:8px; color:var(--text-main);">
       </div>
+      
+      <div style="margin-bottom:12px;">
+        <label>PIN</label>
+        <input type="text" id="edit_pin" name="pin_nuevo" placeholder="Dejar em branco para não alterar" style="width:100%; padding:8px; background:var(--bg-card); border:1px solid var(--border-color); border-radius:8px; color:var(--text-main);">
+      </div>
+      
+      <div style="margin-bottom:12px;">
+        <label>Saldo (R$)</label>
+        <input type="number" step="0.01" id="edit_saldo" name="saldo_nuevo" placeholder="Dejar em branco para não alterar" style="width:100%; padding:8px; background:var(--bg-card); border:1px solid var(--border-color); border-radius:8px; color:var(--text-main);">
+      </div>
+      
+      <div style="margin-bottom:12px;">
+        <label>Email (opcional)</label>
+        <input type="email" id="edit_email" name="email_nuevo" style="width:100%; padding:8px; background:var(--bg-card); border:1px solid var(--border-color); border-radius:8px; color:var(--text-main);">
+      </div>
+      
+      <div style="margin-bottom:16px;">
+        <label>Teléfono (opcional)</label>
+        <input type="text" id="edit_telefono" name="telefono_nuevo" style="width:100%; padding:8px; background:var(--bg-card); border:1px solid var(--border-color); border-radius:8px; color:var(--text-main);">
+      </div>
+      
+      <input type="password" name="admin_pass" placeholder="Sua Senha Admin" required style="width:100%; padding:8px; margin-bottom:12px; background:var(--bg-card); border:1px solid var(--border-color); border-radius:8px; color:var(--text-main);">
+      
+      <div style="display:flex; gap:10px;">
+        <button type="submit" style="flex:1; padding:10px; background:var(--info-blue); color:white; border:none; border-radius:8px; cursor:pointer;">SALVAR</button>
+        <button type="button" onclick="document.getElementById('modalEditar').style.display='none'" style="flex:1; padding:10px; background:var(--danger-red); color:white; border:none; border-radius:8px; cursor:pointer;">CANCELAR</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function editarUsuario(usuario, pin, email, telefono, saldo) {
+  document.getElementById('edit_usuario_original').value = usuario;
+  document.getElementById('edit_usuario_nuevo').value = usuario;
+  document.getElementById('edit_pin').value = pin || '';
+  document.getElementById('edit_saldo').value = saldo || '';
+  document.getElementById('edit_email').value = email || '';
+  document.getElementById('edit_telefono').value = telefono || '';
+  document.getElementById('modalEditar').style.display = 'flex';
+}
+</script>
+
+<!-- NUEVO USUARIO -->
+       <div class="seccion-box" style="border-color:var(--success-green);">
+         <h2 style="color:var(--success-green);">👤 Cadastrar Novo Usuário</h2>
+         <form action="{{ url_for('admin.admin_crear_usuario') }}" method="POST">
+           <div style="display:flex; gap:15px; flex-wrap:wrap;">
+             <div style="flex:2; min-width:140px;">
+               <label>Nome de Usuário</label>
+               <input type="text" name="usuario" placeholder="Ex: joao_silva" required>
+             </div>
+             <div style="flex:1; min-width:100px;">
+               <label>PIN</label>
+               <input type="text" name="pin" placeholder="4 dígitos" required>
+             </div>
+             <div style="flex:1; min-width:100px;">
+               <label>Saldo Inicial R$</label>
+               <input type="number" step="0.01" name="saldo" placeholder="0.00" required>
+             </div>
+             <div style="flex:2; min-width:140px;">
+               <label>Email (opcional)</label>
+               <input type="email" name="email" placeholder="usuario@ejemplo.com">
+             </div>
+             <div style="flex:2; min-width:140px;">
+               <label>Teléfono (opcional)</label>
+               <input type="text" name="telefono" placeholder="+55 11 99999-9999">
+             </div>
+             <div style="flex:1; min-width:120px; display:flex; align-items:center; padding-top:8px;">
+               <label style="background:#1e3a29; padding:9px; border-radius:4px; border:1px dashed var(--success-green); cursor:pointer; width:100%; text-align:center; color:#2ecc71;">
+                 <input type="checkbox" name="aplicar_bono"> + Bônus R$ {{ configs.bono_registro }}
+               </label>
+             </div>
+           </div>
+           <input type="password" name="admin_pass" placeholder="Sua Senha Admin" required>
+           <button type="submit" class="btn-green">CRIAR USUÁRIO</button>
+         </form>
+       </div>
 
       <!-- FINALIZAR RONDA -->
       <div class="seccion-box" style="border-color:var(--danger-red);">
@@ -731,39 +1052,7 @@ function setActive(el) {
   el.classList.add('active');
 }
 
-// ===== CHART =====
-document.addEventListener('DOMContentLoaded', function() {
-  const ctx = document.getElementById('revenueChart').getContext('2d');
-  let gradient = ctx.createLinearGradient(0, 0, 0, 300);
-  gradient.addColorStop(0, 'rgba(243,156,18,0.4)');
-  gradient.addColorStop(1, 'rgba(243,156,18,0.0)');
-  new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: ['Último', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho'],
-      datasets: [{
-        label: 'Receita (R$)',
-        data: [50000, 190000, 110000, 220000, 40000, 60000],
-        borderColor: '#f39c12',
-        backgroundColor: gradient,
-        borderWidth: 2,
-        pointBackgroundColor: '#f39c12',
-        pointBorderColor: '#fff',
-        pointRadius: 4,
-        fill: true,
-        tension: 0.4
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { color: '#333842' }, ticks: { color: '#a0aab2', font: { size: 11 } } },
-        y: { grid: { color: '#333842' }, ticks: { color: '#a0aab2', font: { size: 11 }, callback: v => v.toLocaleString() }, min: 0, max: 250000 }
-      }
-    }
-  });
-});
+
 
 // ===== RESET REGLAS =====
 function confirmarResetReglas() {
@@ -945,6 +1234,135 @@ function exportarLogsATexto() {
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
+
+// ===== LIMPIAR LOGS DEL SISTEMA =====
+async function confirmarLimpiarLogs() {
+  if (!confirm('⚠️ ¿Estás SEGURO de que deseas ELIMINAR TODOS los logs del sistema?\n\nEsta acción NO se puede deshacer.')) {
+    return;
+  }
+  
+  const adminPass = prompt('🔐 Ingresa tu contraseña de administrador para confirmar:');
+  if (!adminPass) {
+    alert('❌ Operación cancelada: No se proporcionó contraseña.');
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/clear_logs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ admin_pass: adminPass })
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok && data.status === 'ok') {
+      alert(`✅ ${data.message}`);
+      location.reload();
+    } else {
+      alert(`❌ Error: ${data.message || 'No se pudieron eliminar los logs'}`);
+    }
+  } catch (error) {
+       alert(`❌ Error de conexión: ${error.message}`);
+    }
+  }
+}
+
+// ===== NGROK CONTROL =====
+async function checkNgrokStatus() {
+  try {
+    const response = await fetch('{{ url_for("admin.ngrok_status") }}');
+    const data = await response.json();
+    
+    const statusText = document.getElementById('ngrok_status_text');
+    const urlContainer = document.getElementById('ngrok_url_container');
+    const urlLink = document.getElementById('ngrok_url_link');
+    const btnStart = document.getElementById('btn_ngrok_start');
+    const btnStop = document.getElementById('btn_ngrok_stop');
+    
+    if (data.status === 'running') {
+      statusText.textContent = '🟢 En ejecución';
+      statusText.style.color = 'var(--success-green)';
+      btnStart.style.display = 'none';
+      btnStop.style.display = 'flex';
+      
+      if (data.url) {
+        urlContainer.style.display = 'block';
+        urlLink.href = data.url;
+        urlLink.textContent = data.url;
+      }
+    } else {
+      statusText.textContent = '⚫ Detenido';
+      statusText.style.color = '#888';
+      btnStart.style.display = 'flex';
+      btnStop.style.display = 'none';
+      urlContainer.style.display = 'none';
+    }
+  } catch (error) {
+    console.error('Error checking ngrok status:', error);
+  }
+}
+
+async function ngrokStart() {
+  const messageDiv = document.getElementById('ngrok_message');
+  messageDiv.textContent = 'Iniciando ngrok...';
+  messageDiv.style.color = 'var(--info-blue)';
+  
+  try {
+    const response = await fetch('{{ url_for("admin.ngrok_start") }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    const data = await response.json();
+    
+    if (data.status === 'ok' || data.status === 'warning') {
+      messageDiv.textContent = data.message || 'ngrok iniciado';
+      messageDiv.style.color = 'var(--success-green)';
+      setTimeout(checkNgrokStatus, 2000);
+    } else {
+      messageDiv.textContent = 'Error: ' + (data.message || 'Desconocido');
+      messageDiv.style.color = 'var(--danger-red)';
+    }
+  } catch (error) {
+    messageDiv.textContent = 'Error de conexión: ' + error.message;
+    messageDiv.style.color = 'var(--danger-red)';
+  }
+}
+
+async function ngrokStop() {
+  const messageDiv = document.getElementById('ngrok_message');
+  messageDiv.textContent = 'Deteniendo ngrok...';
+  messageDiv.style.color = 'var(--info-blue)';
+  
+  try {
+    const response = await fetch('{{ url_for("admin.ngrok_stop") }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    const data = await response.json();
+    
+    if (data.status === 'ok' || data.status === 'warning') {
+      messageDiv.textContent = data.message || 'ngrok detenido';
+      messageDiv.style.color = 'var(--success-green)';
+      setTimeout(checkNgrokStatus, 1000);
+    } else {
+      messageDiv.textContent = 'Error: ' + (data.message || 'Desconocido');
+      messageDiv.style.color = 'var(--danger-red)';
+    }
+  } catch (error) {
+    messageDiv.textContent = 'Error de conexión: ' + error.message;
+    messageDiv.style.color = 'var(--danger-red)';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  checkNgrokStatus();
+  // Polling cada 30 segundos
+  setInterval(checkNgrokStatus, 30000);
+});
+
 </script>
 
 <script src="{{ url_for('static', filename='js/admin/admin-main.js') }}"></script>

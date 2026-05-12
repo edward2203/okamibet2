@@ -166,31 +166,70 @@ def init_db():
 def aplicar_migraciones():
     """Sincroniza columnas faltantes en caliente."""
     conn = obtener_conexion()
-
+    
     # ✅ CORRECCIÓN: validar conn
     if conn is None:
         print("❌ [SISTEMA-PG] No se pudo obtener conexión. Migraciones abortadas.")
         return
-
+    
     cursor = None
     try:
         cursor = conn.cursor()
         print("🔍 [SISTEMA-PG] Verificando integridad de columnas...")
-
+        
         cambios = False
-        # Añade aquí ALTER TABLE si detectas columnas faltantes en el futuro
-
+        # 1. Agregar columna email a usuarios si no existe
+        cursor.execute("""
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'usuarios' AND column_name = 'email'
+        """)
+        if cursor.fetchone() is None:
+            cursor.execute("ALTER TABLE usuarios ADD COLUMN email VARCHAR(255) DEFAULT NULL")
+            conn.commit()
+            print("✅ [MIGRACIÓN] Columna 'email' agregada a usuarios")
+            cambios = True
+        
+        # 2. Agregar columna telefono a usuarios si no existe
+        cursor.execute("""
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'usuarios' AND column_name = 'telefono'
+        """)
+        if cursor.fetchone() is None:
+            cursor.execute("ALTER TABLE usuarios ADD COLUMN telefono VARCHAR(20) DEFAULT NULL")
+            conn.commit()
+            print("✅ [MIGRACIÓN] Columna 'telefono' agregada a usuarios")
+            cambios = True
+        
         if cambios:
             conn.commit()
             print("✅ [MIGRACIÓN] Estructura alineada.")
         else:
             print("✅ [SISTEMA] Estructura validada.")
-
+        
+        # 3. Agregar configuraciones faltantes (SMTP, Telegram, WhatsApp)
+        configs_to_add = [
+            ('smtp_server', ''),
+            ('smtp_port', '587'),
+            ('smtp_user', ''),
+            ('smtp_password', ''),
+            ('platform_email', ''),
+            ('telegram_token', ''),
+            ('telegram_admin_id', ''),
+            ('whatsapp_token', ''),
+            ('whatsapp_phone_id', ''),
+        ]
+        for clave, valor in configs_to_add:
+            cursor.execute(
+                "INSERT INTO configuraciones (clave, valor) VALUES (%s, %s) ON CONFLICT (clave) DO NOTHING",
+                (clave, valor)
+            )
+        conn.commit()
+        print("✅ [MIGRACIÓN] Configuraciones por defecto agregadas.")
+        
     except Exception as e:
         conn.rollback()
         print(f"❌ [MIGRACIÓN] Error: {e}")
         raise
-
     finally:
         # ✅ CORRECCIÓN: cerrar cursor siempre y liberar conexión
         if cursor:

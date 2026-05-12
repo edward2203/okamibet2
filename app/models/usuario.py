@@ -10,15 +10,26 @@ class UsuarioModel:
         """Aplica bono de bienvenida garantizando atomicidad mediante transacción."""
         try:
             bono_cantidad = float(get_config('bono_registro') or 5.0)
-
+            
             with transaction() as cursor:
                 cursor.execute(
                     'SELECT bono_bienvenida_usado FROM usuarios_bonificacion WHERE usuario = %s',
                     (usuario,)
                 )
                 bono_row = cursor.fetchone()
-
-                if bono_row and bono_row[0] == 0:
+                
+                if bono_row is None:
+                    # No existe el registro, insertar con bono no usado
+                    cursor.execute(
+                        'INSERT INTO usuarios_bonificacion (usuario, bono_bienvenida_usado) VALUES (%s, 0)',
+                        (usuario,)
+                    )
+                    cursor.execute(
+                        'UPDATE usuarios SET saldo = saldo + %s WHERE usuario = %s',
+                        (bono_cantidad, usuario)
+                    )
+                    return True
+                elif bono_row[0] == 0:
                     cursor.execute(
                         'UPDATE usuarios SET saldo = saldo + %s WHERE usuario = %s',
                         (bono_cantidad, usuario)
@@ -28,7 +39,8 @@ class UsuarioModel:
                         (usuario,)
                     )
                     return True
-            return False
+                else:
+                    return False
         except Exception:
             return False
 

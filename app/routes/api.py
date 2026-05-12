@@ -1,11 +1,13 @@
 # app/routes/api.py
-from flask import request, jsonify
-from . import api_bp
+from flask import request, jsonify, Blueprint
+
+api_bp = Blueprint('api', __name__, url_prefix='/api')
 from app.database import get_db, release_db
-from app.models.configuracion import get_config
+from app.models.configuracion import get_config, get_config_batch
 from app.models.apuesta import ApuestaModel
 from app.models.log import LogModel
 from app.services.calculos import extraer_equipos_partido, calcular_recomendaciones_escudo
+from app.services.validacion import validar_acceso_admin
 import psycopg2.extras
 
 DICCIONARIO_IDIOMAS = {"es": {"ganador_txt": "ganó"}, "pt": {"ganador_txt": "ganhou"}}
@@ -47,7 +49,22 @@ def validar_usuario():
     usuario      = data.get('usuario', '').strip().lower()
     pin_ingresado = data.get('pin', '').strip()
 
+    # LOG: Intento de validación de usuario
+    log_detalles = {
+        'usuario': usuario,
+        'pin_length': len(pin_ingresado),
+        'ip': request.environ.get('HTTP_X_REAL_IP', request.environ.get('REMOTE_ADDR', 'N/A')),
+        'user_agent': request.environ.get('HTTP_USER_AGENT', 'N/A')
+    }
+
     if not usuario:
+        LogModel.registrar(
+            tipo='warning',
+            titulo='⚠️ Validación de Usuario - Sin Usuario',
+            descripcion='Intento de validación sin nombre de usuario',
+            usuario='DESCONOCIDO',
+            detalles=log_detalles
+        )
         return jsonify({"existe": False})
 
     conn = get_db()
@@ -61,12 +78,120 @@ def validar_usuario():
 
     if usuario_data:
         pin_correcto = str(usuario_data['pin']) == str(pin_ingresado)
+        
+        if pin_correcto:
+            LogModel.registrar(
+                tipo='success',
+                titulo='✅ Usuario Validado Exitosamente',
+                descripcion=f'Usuario {usuario} validado correctamente',
+                usuario=usuario,
+                detalles={**log_detalles, 'saldo': float(usuario_data['saldo']), 'pin_correcto': True}
+            )
+        else:
+            LogModel.registrar(
+                tipo='warning',
+                titulo='⚠️ Validación de Usuario - PIN Incorrecto',
+                descripcion=f'Usuario {usuario}: PIN incorrecto',
+                usuario=usuario,
+                detalles={**log_detalles, 'saldo': float(usuario_data['saldo']), 'pin_correcto': False}
+            )
+        
         return jsonify({
             "existe":       True,
             "saldo":        float(usuario_data['saldo']),
             "pin_correcto": pin_correcto,
         })
+    
+    # Usuario no encontrado
+    LogModel.registrar(
+        tipo='warning',
+        titulo='⚠️ Validación de Usuario - No Encontrado',
+        descripcion=f'Usuario {usuario} no encontrado en BD',
+        usuario=usuario,
+        detalles=log_detalles
+    )
     return jsonify({"existe": False})
+
+
+@api_bp.route('/resumen', methods=['GET'])
+def api_resumen():
+    """
+    Resumen de apuestas activas y estadísticas del sistema.
+    Retorna información útil para el dashboard y pantalla principal.
+    """
+    from app.models.apuesta import ApuestaModel
+    from app.models.usuario import UsuarioModel
+    from app.services.calculos import calcular_pozo_visible
+    
+    conn = get_db()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        
+        # Total de apuestas activas
+        cur.execute('SELECT COUNT(*) as total FROM apuestas')
+        total_apuestas_activas = cur.fetchone()['total']
+        
+        # Total apostado
+        cur.execute('SELECT COALESCE(SUM(monto), 0) as total FROM apuestas')
+        total_apostado = float(cur.fetchone()['total'])
+        
+        # Total de usuarios
+        cur.execute('SELECT COUNT(*) as total FROM usuarios')
+        total_usuarios = cur.fetchone()['total']
+        
+        # Saldo total en el sistema
+        cur.execute('SELECT COALESCE(SUM(saldo), 0) as total FROM usuarios')
+        saldo_total_usuarios = float(cur.fetchone()['total'])
+        
+        # Distribución por pronóstico
+        cur.execute('''
+            SELECT pronostico, COUNT(*) as cantidad, SUM(monto) as total_monto
+            FROM apuestas
+            GROUP BY pronostico
+        ''')
+        distribucion = {}
+        for row in cur.fetchall():
+            distribucion[row['pronostico']] = {
+                'cantidad': row['cantidad'],
+                'monto': float(row['total_monto'])
+            }
+        
+        cur.close()
+    finally:
+        release_db(conn)
+    
+    # Obtener configuraciones
+    configs = get_config_batch([
+        'comision', 'partido_actual', 'deporte_actual',
+        'saldo_semilla', 'pozo_acumulado', 'min_apuesta', 'max_apuesta'
+    ])
+    
+    # Calcular pozo visible
+    pozo_bruto = total_apostado + float(configs.get('saldo_semilla', 0)) + float(configs.get('pozo_acumulado', 0))
+    pozo_visible = calcular_pozo_visible(total_apostado)
+    
+    return jsonify({
+        'status': 'ok',
+        'apuestas_activas': {
+            'total': total_apuestas_activas,
+            'monto_total': round(total_apostado, 2),
+            'pozo_visible': round(pozo_visible, 2),
+            'pozo_bruto': round(pozo_bruto, 2),
+            'distribucion': {k: {'cantidad': v['cantidad'], 'monto': round(v['monto'], 2)} 
+                           for k, v in distribucion.items()}
+        },
+        'usuarios': {
+            'total': total_usuarios,
+            'saldo_total': round(saldo_total_usuarios, 2)
+        },
+        'configuracion': {
+            'partido_actual': configs.get('partido_actual', 'N/A'),
+            'deporte': configs.get('deporte_actual', 'futbol'),
+            'comision': float(configs.get('comision', 20)),
+            'min_apuesta': float(configs.get('min_apuesta', 20)),
+            'max_apuesta': float(configs.get('max_apuesta', 200))
+        }
+    })
 
 
 @api_bp.route('/shield/rules', methods=['GET'])
@@ -180,3 +305,92 @@ def obtener_logs():
         return jsonify({'status': 'ok', 'logs': logs_serializable}), 200
     except Exception as e:
         return jsonify({'status': 'error', 'mensaje': str(e)}), 500
+
+@api_bp.route('/client_log', methods=['POST'])
+def client_log():
+    """Recibe logs del cliente (JavaScript) y los registra en el sistema."""
+    data = request.get_json(silent=True) or {}
+    
+    tipo = data.get('tipo', 'info')
+    titulo = data.get('titulo', 'Evento Cliente')
+    descripcion = data.get('descripcion', '')
+    usuario = data.get('usuario', 'ANONIMO')
+    detalles = data.get('detalles', {})
+    
+    # Agregar IP y User Agent
+    ip = request.environ.get('HTTP_X_REAL_IP', request.environ.get('REMOTE_ADDR', 'N/A'))
+    user_agent = request.environ.get('HTTP_USER_AGENT', 'N/A')
+    
+    if isinstance(detalles, dict):
+        detalles['ip'] = ip
+        detalles['user_agent'] = user_agent
+        detalles['referer'] = request.environ.get('HTTP_REFERER', 'N/A')
+    
+    LogModel.registrar(
+        tipo=tipo,
+        titulo=titulo,
+        descripcion=descripcion,
+        usuario=usuario,
+        detalles=detalles,
+        ip_address=ip,
+        user_agent=user_agent
+    )
+    
+    return jsonify({'status': 'ok'}), 200
+
+
+@api_bp.route('/clear_logs', methods=['POST'])
+def clear_logs():
+    """
+    Elimina TODOS los logs del sistema tras validar contraseña de administrador.
+    Registra el evento de limpieza en el log (auditoría).
+    """
+    data = request.get_json(silent=True) or {}
+    admin_pass = data.get('admin_pass', '')
+    
+    # Validar contraseña
+    if not validar_acceso_admin(admin_pass):
+        LogModel.registrar(
+            tipo='warning',
+            titulo='⚠️ Intento de Limpieza de Logs - Acceso Denegado',
+            descripcion='Intento de limpiar logs sin contraseña válida',
+            usuario='ADMIN',
+            detalles={
+                'ip': request.environ.get('HTTP_X_REAL_IP', request.environ.get('REMOTE_ADDR', 'N/A')),
+                'user_agent': request.environ.get('HTTP_USER_AGENT', 'N/A')
+            },
+            nivel='WARNING'
+        )
+        return jsonify({'status': 'error', 'message': 'Contraseña de administrador incorrecta'}), 403
+    
+    # Contar registros antes de eliminar
+    conn = get_db()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM logs_sistema")
+        total_registros = cursor.fetchone()[0]
+    finally:
+        release_db(conn)
+    
+    # Eliminar todos los logs
+    registros_eliminados = LogModel.limpiar_todos()
+    
+    # Registrar evento de auditoría (este log SÍ se guarda para auditoría)
+    LogModel.registrar(
+        tipo='config',
+        titulo='🗑️ Logs del Sistema Eliminados',
+        descripcion=f'Se eliminaron {registros_eliminados} registros del log del sistema',
+        usuario='ADMIN',
+        detalles={
+            'total_registros_eliminados': registros_eliminados,
+            'ip': request.environ.get('HTTP_X_REAL_IP', request.environ.get('REMOTE_ADDR', 'N/A')),
+            'user_agent': request.environ.get('HTTP_USER_AGENT', 'N/A')
+        },
+        nivel='CRITICAL'
+    )
+    
+    return jsonify({
+        'status': 'ok',
+        'message': f'Se eliminaron {registros_eliminados} registros del log',
+        'registros_eliminados': registros_eliminados
+    }), 200

@@ -5,7 +5,7 @@ from app.services.db import obtener_conexion
 from app.services.bot_bridge import notificar_admin_telegram, responder_cliente_whatsapp
 import requests
 
-ext_bp = Blueprint('ext', __name__)
+ext_bp = Blueprint('ext', __name__, url_prefix='/ext')
 
 # ─── Configuración ───────────────────────────────────────────────────────────
 TOKEN_WHATSAPP     = get_config('whatsapp_token')   or "TU_TOKEN_AQUÍ"

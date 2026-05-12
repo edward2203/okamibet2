@@ -282,11 +282,26 @@
                 align-items: flex-start;
             }
         }
+        /* Quitar spin buttons de inputs numéricos */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
     </style>
 </head>
 <body>
     <div class="card">
         <div class="card__body">
+            <!-- Banner de Éxito (se muestra cuando apuesta es registrada) -->
+            <div id="successBanner" style="display:none; background:linear-gradient(135deg, #065f46, #047857); color:#d1fae5; padding:14px 20px; text-align:center; font-weight:600; font-size:0.9rem; border-radius:12px; margin-bottom:16px; box-shadow:0 4px 12px rgba(0,0,0,0.3);">
+                <span id="successMessage">✅ Apuesta registrada exitosamente!</span>
+                <button type="button" style="margin-left:16px; padding:6px 18px; background:#10b981; color:#000; border:none; border-radius:6px; font-weight:700; cursor:pointer;" onclick="cerrarBannerExito()">ACEPTAR</button>
+            </div>
+
             <div class="header">
                 <div>
                     <div class="header__title">{{ partido }}</div>
@@ -297,10 +312,49 @@
                     <button id="langEs" type="button" class="lang-button {% if lang_actual == 'es' %}active{% endif %}">ES</button>
                 </div>
             </div>
-
+            
+            {% if error_param %}
+            <div id="errorBanner" class="box" style="border-color: rgba(248, 113, 113, 0.32); background: rgba(248, 113, 113, 0.14);">
+                <div style="color: #fecaca; font-weight: 600; font-size: 0.95rem;">
+                    ⚠️ 
+                    {% if error_param == 'apuesta_duplicada' %}
+                        Apuesta Duplicada - Ya tienes una apuesta activa
+                    {% elif error_param == 'usuario_no_existe' %}
+                        Usuario No Existe
+                    {% elif error_param == 'pin_incorrecto' %}
+                        PIN Incorrecto
+                    {% elif error_param == 'saldo_insuficiente' %}
+                        Saldo Insuficiente
+                    {% elif error_param == 'apuestas_cerradas' %}
+                        Apuestas Cerradas
+                    {% elif error_param == 'monto_invalido' %}
+                        Monto Inválido
+                    {% else %}
+                        {{ error_param }}
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if exito_param %}
+            <div id="exitoBanner" class="box" style="border-color: rgba(16, 185, 129, 0.32); background: rgba(16, 185, 129, 0.14);">
+                <div style="color: #a7f3d0; font-weight: 600; font-size: 0.95rem;">
+                    ✅ 
+                    {% if exito_param == 'apuesta_registrada' %}
+                        Apuesta Registrada Exitosamente
+                    {% else %}
+                        {{ exito_param }}
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            
             <div class="box">
                 <div id="pozoLabel" class="box__label">{{ idioma.pozo_txt }}</div>
                 <div class="box__amount">R$ {{ "{:.2f}".format(pozo) }}</div>
+            </div>
+            <div id="countdown" style="margin-top:10px; font-size:0.9rem; color:#f39c12; text-align:center; font-weight:bold;">
+                <span id="countdownText">Cargando...</span>
             </div>
 
             <form action="{{ url_for('public.procesar_apuesta') }}" method="POST">
@@ -359,13 +413,56 @@
                 <button id="apostarBtn" class="button" type="submit">{{ idioma.apostar_btn }}</button>
             </form>
 
-            <button id="solicitarBtn" class="button button-secondary" onclick="location.href='/admin/'">{{ idioma.solicitar_btn }}</button>
+            <a href="#" id="solicitarBtn" class="button button-secondary" style="display:block; text-align:center; text-decoration:none;"
+               onclick="event.preventDefault(); var msg = currentLang === 'pt' ? 'Olá administrador, quero me registrar na sua plataforma.' : 'Hola administrador, quiero registrarme en tu plataforma.'; window.open('https://wa.me/67993257298?text=' + encodeURIComponent(msg), '_blank');">{{ idioma.solicitar_btn }}</a>
 
             <p id="footerNote" class="section-note">{{ idioma.minimo_apuesta }} R$ {{ min_apuesta|int }} • {{ idioma.maximo_disponible }} R$ {{ max_apuesta|int }} • {{ idioma.cotacao }} padrão 1.30x</p>
         </div>
     </div>
-
+    
     <script>
+        // ========== BANNER DE ÉXITO ==========
+        function cerrarBannerExito() {
+            // Redirigir a URL limpia (sin parámetros)
+            window.location.href = '/';
+        }
+        
+        // ========== WHATSAPP ==========
+        // El manejador de eventos está registrado abajo via addEventListener
+        
+        function verificarExito() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const exito = urlParams.get('exito');
+            const banner = document.getElementById('successBanner');
+            
+            if (exito === 'apuesta_registrada') {
+                banner.style.display = 'block';
+                // Log: Apuesta exitosa visualizada
+                logClientEvent('success', '✅ Apuesta Exitosa (Cliente)', 'Usuario vio banner de éxito', 
+                    document.getElementById('usuario').value || 'ANONIMO', {exito: exito});
+            } else {
+                banner.style.display = 'none';
+            }
+        }
+        
+        // Verificar al cargar la página (DOM ya está listo)
+        verificarExito();
+        
+        // Función para enviar logs al servidor
+        function logClientEvent(tipo, titulo, descripcion, usuario, detalles) {
+            fetch('{{ url_for("api.client_log") }}', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    tipo: tipo,
+                    titulo: titulo,
+                    descripcion: descripcion,
+                    usuario: usuario || 'ANONIMO',
+                    detalles: detalles || {}
+                })
+            }).catch(err => console.error('Error enviando log:', err));
+        }
+
         const usuarioInput = document.getElementById('usuario');
         const pinInput = document.getElementById('pin');
         const usuarioStatus = document.getElementById('usuarioStatus');
@@ -410,7 +507,6 @@
         const TRANSLATIONS = {
             pt: {
                 cierre_titulo: 'Cierre de Apuestas em',
-                apuestas_cerradas: 'Apuestas Cerradas ❌',
                 pozo_txt: 'Total Acumulado',
                 pozo_info: 'Total escamoteado para cálculo de pagamento',
                 usuario_label: 'Usuário',
@@ -436,7 +532,6 @@
             },
             es: {
                 cierre_titulo: 'Cierre de Apuestas en',
-                apuestas_cerradas: 'Apuestas Cerradas ❌',
                 pozo_txt: 'Pozo Total',
                 pozo_info: 'Total oculto para cálculo de pago',
                 usuario_label: 'Usuario',
@@ -465,6 +560,10 @@
         function setLanguage(lang) {
             if (!TRANSLATIONS[lang]) return;
             currentLang = lang;
+            
+            // Log: Cambio de idioma
+            logClientEvent('info', '🌐 Idioma Cambiado', `Idioma cambiado a ${lang}`, 
+                usuarioInput.value || 'ANONIMO', {lang: lang});
             const t = TRANSLATIONS[lang];
             document.documentElement.lang = lang === 'pt' ? 'pt-BR' : 'es-ES';
             langButtons.forEach(btn => btn.classList.remove('active'));
@@ -499,7 +598,6 @@
             // Extraer hora del partido (ej: "17:30" de "Bahia vs Santos - 25/04 às 17:30")
             const horaMatch = partidoTexto.match(/(\\d{1,2}):(\\d{2})/);
             if (!horaMatch) {
-                headerSubtitle.textContent = t.apuestas_cerradas;
                 return;
             }
             
@@ -531,7 +629,7 @@
             }
             
             if (segundosRestantes <= 0) {
-                headerSubtitle.textContent = t.apuestas_cerradas;
+                // No mostrar mensaje de cierre
             } else {
                 const minutos = Math.floor(segundosRestantes / 60);
                 const segundos = segundosRestantes % 60;
@@ -602,9 +700,15 @@
             } else if (pinCorrecto) {
                 usuarioPin.textContent = t.pin_correct;
                 usuarioPin.className = 'status-pill success';
+                // Log: PIN correcto
+                logClientEvent('success', '✅ PIN Validado (Cliente)', `PIN correcto para ${usuarioInput.value}`, 
+                    usuarioInput.value, {pin_length: pinInput.value.length});
             } else {
                 usuarioPin.textContent = t.pin_incorrect;
                 usuarioPin.className = 'status-pill error';
+                // Log: PIN incorrecto
+                logClientEvent('warning', '⚠️ PIN Incorrecto (Cliente)', `PIN incorrecto para ${usuarioInput.value}`, 
+                    usuarioInput.value, {pin_length: pinInput.value.length});
             }
 
             const maxApuestaUsuario = Math.min(MAX_ALLOWED, currentSaldo);
@@ -672,6 +776,30 @@
         // Inicializar cuando carga la página
         actualizarTotales();
         actualizarContador();
+        
+        // Countdown timer
+        const CIERRE_TIMESTAMP = {{ cierre_timestamp | tojson }};
+        
+        function actualizarCountdown() {
+            const countdownText = document.getElementById('countdownText');
+            if (!CIERRE_TIMESTAMP) {
+                countdownText.textContent = 'Hora de cierre no disponible';
+                return;
+            }
+            const ahora = Math.floor(Date.now() / 1000);
+            const diferencia = CIERRE_TIMESTAMP - ahora;
+            if (diferencia <= 0) {
+                countdownText.textContent = 'APUESTAS CERRADAS';
+                return;
+            }
+            const horas = Math.floor(diferencia / 3600);
+            const minutos = Math.floor((diferencia % 3600) / 60);
+            const segundos = diferencia % 60;
+            countdownText.textContent = `Cierre en: ${horas}h ${minutos}m ${segundos}s`;
+        }
+        
+        actualizarCountdown();
+        setInterval(actualizarCountdown, 1000);
         
         // Actualizar contador cada segundo
         setInterval(actualizarContador, 1000);
